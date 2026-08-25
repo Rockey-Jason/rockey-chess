@@ -392,7 +392,7 @@ const say = useCallback(
         await supabase
           .from("users")
           .select("chess_rating")
-          .eq("id", user.id)
+          .eq("login_id", loginId);
           .maybeSingle();
 
       if (
@@ -836,7 +836,7 @@ const say = useCallback(
           .update({
             chess_rating: next
           })
-          .eq("id", user.id);
+          .eq("login_id", loginId);
       }
     },
     [rating]
