@@ -1,0 +1,469 @@
+/* =========================================================
+   ROCKEY CHESS — BOARD
+========================================================= */
+
+.boardWrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
+    position: relative;
+    min-width: 0;
+}
+
+.boardHeader {
+    width: min(640px, 100%);
+    min-height: 90px;
+
+    display: flex;
+    align-items: center;
+    gap: 20px;
+
+    margin-bottom: 8px;
+    box-sizing: border-box;
+}
+
+.opponentBox {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    flex-shrink: 0;
+}
+
+.opponentImage {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 16px;
+    border: 3px solid #444;
+    background: #222;
+    flex-shrink: 0;
+    box-shadow: 0 5px 18px rgba(0,0,0,.25);
+}
+
+.opponentInfo {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+
+.opponentName {
+    font-size: 21px;
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.opponentLevel {
+    margin-top: 4px;
+    font-size: 15px;
+    color: #bcbcbc;
+}
+
+.evaluationBarRow {
+    width: min(640px, 100%);
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 7px;
+    box-sizing: border-box;
+}
+
+.evaluationLabel {
+    color: #9ca9bb;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.evaluationValue {
+    min-width: 60px;
+    padding: 5px 9px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    text-align: center;
+}
+
+.moveQuality {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    padding: 5px 10px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 900;
+    background: rgba(255,255,255,.08);
+}
+
+.moveQuality span {
+    opacity: .72;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.quality-brilliant { color: #55d6be; }
+.quality-great { color: #6ec8ff; }
+.quality-best { color: #69d46e; }
+.quality-excellent { color: #9bd86a; }
+.quality-good { color: #c6d65c; }
+.quality-inaccuracy { color: #e8c94a; }
+.quality-mistake { color: #f19b4a; }
+.quality-blunder,
+.quality-miss { color: #f05b63; }
+
+.boardArea {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.capturedRow {
+    width: min(640px, 100%);
+    min-height: 40px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    margin: 4px 0;
+    box-sizing: border-box;
+}
+
+.capturedBox {
+    min-height: 38px;
+    min-width: 40px;
+
+    display: flex;
+    align-items: center;
+    gap: 3px;
+
+    padding: 5px 9px;
+    box-sizing: border-box;
+
+    background: rgba(208,208,208,.85);
+    border-radius: 11px;
+
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.capturedBox::-webkit-scrollbar {
+    display: none;
+}
+
+.capturedPiece {
+    width: 27px;
+    height: 27px;
+    object-fit: contain;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.materialScore {
+    min-width: 42px;
+    color: #39d353;
+    font-size: 25px;
+    font-weight: 800;
+    text-align: left;
+}
+
+.board {
+    width: min(640px, 100%);
+    aspect-ratio: 1 / 1;
+
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0,1fr));
+    grid-template-rows: repeat(8, minmax(0,1fr));
+
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+
+    border: 4px solid #222;
+    border-radius: 15px;
+    background: #b58b62;
+
+    box-shadow:
+        0 12px 35px rgba(0,0,0,.45);
+}
+
+.movingPiece {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    z-index: 1000;
+    will-change: transform;
+    transition: transform 150ms cubic-bezier(.22,.61,.36,1);
+}
+
+.movingPieceImg {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    user-select: none;
+    pointer-events: none;
+}
+
+.promotionMenu {
+    position: absolute;
+    z-index: 2000;
+
+    display: flex;
+    flex-direction: column;
+
+    background: #222;
+    border: 2px solid #666;
+    border-radius: 10px;
+    overflow: hidden;
+
+    box-shadow: 0 8px 30px rgba(0,0,0,.5);
+}
+
+.promotionMenu img {
+    width: 64px;
+    height: 64px;
+    display: block;
+    object-fit: contain;
+    background: #fff;
+    cursor: pointer;
+
+    transition:
+        background .18s ease,
+        transform .18s ease;
+}
+
+.promotionMenu img:hover {
+    background: #eee;
+    transform: scale(1.04);
+}
+
+/* =========================================================
+   GAME OVER
+========================================================= */
+
+.game-over {
+    position: fixed;
+    inset: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+    box-sizing: border-box;
+
+    background: rgba(0,0,0,.74);
+    backdrop-filter: blur(5px);
+
+    z-index: 9999;
+}
+
+.popup {
+    width: min(430px, 100%);
+    padding: 38px 32px;
+
+    background: linear-gradient(145deg,#ffffff,#f4f6fa);
+    color: #111;
+    border-radius: 22px;
+    text-align: center;
+
+    box-shadow:
+        0 25px 80px rgba(0,0,0,.5);
+
+    animation: gameOverIn .35s cubic-bezier(.22,1,.36,1);
+}
+
+.resultEyebrow {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .18em;
+    color: #687284;
+}
+
+.popup h1 {
+    margin: 8px 0 8px;
+    font-size: 34px;
+    letter-spacing: -.02em;
+}
+
+.popup h2 {
+    margin: 0 0 22px;
+    font-size: 22px;
+}
+
+.finalAccuracy {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 16px;
+    margin-bottom: 16px;
+
+    border-radius: 12px;
+    background: #edf0f5;
+}
+
+.finalAccuracy strong {
+    font-size: 24px;
+}
+
+.popup button {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 13px 20px;
+
+    border: 0;
+    border-radius: 11px;
+
+    font-size: 16px;
+    font-weight: 850;
+    cursor: pointer;
+
+    transition:
+        transform .18s cubic-bezier(.22,1,.36,1),
+        filter .18s ease,
+        background .18s ease;
+}
+
+.popup button:hover {
+    transform: translateY(-2px) scale(1.02);
+    filter: brightness(1.06);
+}
+
+.primaryAction {
+    background: #242c39;
+    color: #fff;
+}
+
+.secondaryAction {
+    background: #e5e8ed;
+    color: #15191f;
+}
+
+@keyframes gameOverIn {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (max-width: 1100px) {
+    .boardHeader,
+    .evaluationBarRow,
+    .capturedRow,
+    .board {
+        width: min(600px,100%);
+    }
+}
+
+@media (max-width: 700px) {
+    .boardWrapper {
+        padding: 0 10px;
+    }
+
+    .boardHeader {
+        width: 100%;
+        min-height: 72px;
+        gap: 10px;
+    }
+
+    .opponentImage {
+        width: 55px;
+        height: 55px;
+        border-radius: 13px;
+        border-width: 2px;
+    }
+
+    .opponentBox {
+        gap: 8px;
+    }
+
+    .opponentName {
+        max-width: 110px;
+        font-size: 16px;
+    }
+
+    .opponentLevel {
+        font-size: 12px;
+    }
+
+    .evaluationBarRow {
+        width: 100%;
+    }
+
+    .moveQuality {
+        max-width: 55%;
+    }
+
+    .capturedRow {
+        width: 100%;
+        min-height: 32px;
+    }
+
+    .capturedBox {
+        min-height: 32px;
+        padding: 3px 7px;
+    }
+
+    .capturedPiece {
+        width: 22px;
+        height: 22px;
+    }
+
+    .materialScore {
+        font-size: 20px;
+        min-width: 35px;
+    }
+
+    .board {
+        width: 100%;
+        border-width: 3px;
+        border-radius: 10px;
+    }
+}
+
+@media (max-width: 420px) {
+    .opponentImage {
+        width: 48px;
+        height: 48px;
+    }
+
+    .opponentName {
+        max-width: 85px;
+        font-size: 14px;
+    }
+
+    .evaluationLabel {
+        display: none;
+    }
+
+    .evaluationValue {
+        min-width: 52px;
+    }
+
+    .moveQuality {
+        font-size: 11px;
+    }
+}

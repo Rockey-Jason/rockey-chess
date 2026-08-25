@@ -1,0 +1,117 @@
+.topBar{
+
+    width:100%;
+
+    height:70px;
+
+    background:#242424;
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:0 40px;
+
+    box-sizing:border-box;
+
+    color:white;
+
+}
+
+.logo{
+
+    font-size:30px;
+
+    font-weight:bold;
+
+}
+
+.topRight{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:30px;
+
+}
+
+.rating{
+
+    font-size:24px;
+
+    font-weight:bold;
+
+    color:gold;
+
+}
+
+.ratingArea{
+
+    position:relative;
+
+}
+
+.rating{
+
+    color:gold;
+
+    font-size:24px;
+
+    font-weight:bold;
+
+}
+
+.ratingUp{
+
+    position:absolute;
+
+    left:110%;
+
+    top:0;
+
+    color:#00ff55;
+
+    font-weight:bold;
+
+    animation:ratingFloat 1.5s forwards;
+
+}
+
+.ratingDown{
+
+    position:absolute;
+
+    left:110%;
+
+    top:0;
+
+    color:#ff5555;
+
+    font-weight:bold;
+
+    animation:ratingFloat 1.5s forwards;
+
+}
+
+@keyframes ratingFloat{
+
+    from{
+
+        opacity:1;
+
+        transform:translateY(0);
+
+    }
+
+    to{
+
+        opacity:0;
+
+        transform:translateY(-25px);
+
+    }
+
+}

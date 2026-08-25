@@ -1,0 +1,65 @@
+.botSelect{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:12px;
+
+}
+
+.botCard{
+
+    position:relative;
+
+    width:220px;
+
+    padding:12px;
+
+    border-radius:15px;
+
+    cursor:pointer;
+
+    background:#3a3a3a;
+
+    color:white;
+
+    border:none;
+
+    transition:.25s;
+
+}
+
+.botCard:hover{
+
+    transform:scale(1.04);
+
+}
+
+.botCard.selected{
+
+    outline:4px solid gold;
+
+}
+
+.botCard img{
+
+    width:70px;
+
+    height:70px;
+
+    border-radius:12px;
+
+}
+
+.locked{
+
+    position:absolute;
+
+    right:15px;
+
+    top:15px;
+
+    font-size:28px;
+
+}

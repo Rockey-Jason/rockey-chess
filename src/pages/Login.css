@@ -1,0 +1,131 @@
+body{
+
+    margin:0;
+
+    background:linear-gradient(to right,#000033,#000010);
+
+}
+
+.loginPage{
+
+    width:100vw;
+
+    height:100vh;
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:center;
+
+    justify-content:flex-start;
+
+    color:white;
+
+}
+
+.title{
+
+    margin-top:20px;
+
+    font-size:90px;
+
+    font-family:"Black Han Sans",sans-serif;
+
+    font-weight:normal;
+
+}
+
+.subTitle{
+
+    margin-top:-10px;
+
+    margin-bottom:70px;
+
+    font-size:22px;
+
+    font-family:"Jua",sans-serif;
+
+}
+
+.inputArea{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,420px);
+
+    gap:40px;
+
+}
+
+.inputBox{
+
+    display:flex;
+
+    flex-direction:column;
+
+}
+
+.label{
+
+    font-size:42px;
+
+    margin-bottom:12px;
+
+    font-family:"Jua",sans-serif;
+
+}
+
+.inputBox input{
+
+    width:380px;
+
+    height:45px;
+
+    font-size:20px;
+
+    padding-left:10px;
+
+    border-radius:10px;
+
+    border:none;
+
+    outline:none;
+
+}
+
+.loginButton{
+
+    margin-top:70px;
+
+    width:220px;
+
+    height:60px;
+
+    font-size:28px;
+
+    font-family:"Jua",sans-serif;
+
+    border:none;
+
+    border-radius:15px;
+
+    cursor:pointer;
+
+    background:white;
+
+    transition:0.25s;
+
+}
+
+.loginButton:hover{
+
+    transform:scale(1.05);
+
+}
+
+.loginButton:active{
+
+    transform:scale(0.96);
+
+}

@@ -1,0 +1,123 @@
+.square{
+
+width:80px;
+
+height:80px;
+
+position:relative;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+}
+
+.light{
+
+background:#f0d9b5;
+
+}
+
+.dark{
+
+background:#b58863;
+
+}
+
+.highlight{
+
+position:absolute;
+
+width:22px;
+
+height:22px;
+
+background:rgba(30,255,30,.65);
+
+border-radius:50%;
+
+}
+
+.selected{
+
+outline:4px solid #44ff44;
+
+outline-offset:-4px;
+
+}
+
+.lastMove{
+
+background:#d8d46b !important;
+
+}
+
+.check{
+
+    background:#ff4d4d !important;
+
+}
+
+.boardArea{
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:center;
+
+}
+
+.playerProfile{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:15px;
+
+    margin-bottom:15px;
+
+    width:640px;
+
+}
+
+.botImage{
+
+    width:80px;
+
+    height:80px;
+
+    object-fit:contain;
+
+}
+
+.botInfo h2{
+
+    color:white;
+
+    margin:0;
+
+}
+
+.botInfo p{
+
+    color:#d0d0d0;
+
+    margin:0;
+
+}
+
+.turn{
+
+    margin-bottom:15px;
+
+    color:white;
+
+    font-size:22px;
+
+    font-weight:bold;
+
+}

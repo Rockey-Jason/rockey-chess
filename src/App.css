@@ -1,0 +1,48 @@
+*{
+
+margin:0;
+
+padding:0;
+
+box-sizing:border-box;
+
+}
+
+body{
+
+background:#06142b;
+
+font-family:Arial;
+
+}
+
+.app{
+
+width:100%;
+
+min-height:100vh;
+
+color:white;
+
+}
+
+.layout{
+
+margin-top:40px;
+
+display:flex;
+
+justify-content:center;
+
+align-items:flex-start;
+
+gap:40px;
+
+}
+
+.opponentImage{
+    width:80px;
+    height:80px;
+    object-fit:contain;
+    border-radius:50%;
+}
