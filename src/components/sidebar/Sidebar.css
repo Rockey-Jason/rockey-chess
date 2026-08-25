@@ -291,3 +291,5 @@
         height: 220px;
     }
 }
+
+.coinMini{margin-top:12px;padding:10px 12px;border-radius:11px;background:rgba(255,216,74,.08);color:#ffd84a;font-weight:900;text-align:center}.pgnButton,.actionButton,.botButton{transition:transform .16s ease,filter .16s ease,box-shadow .16s ease}.pgnButton:hover:not(:disabled),.actionButton:hover:not(:disabled),.botButton:hover:not(:disabled){transform:scale(1.035);filter:brightness(1.13);box-shadow:0 8px 20px rgba(0,0,0,.18)}.pgnButton:active:not(:disabled),.actionButton:active:not(:disabled),.botButton:active:not(:disabled){transform:scale(.98)}

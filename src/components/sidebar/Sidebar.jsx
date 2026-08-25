@@ -1,5 +1,7 @@
 import "./Sidebar.css";
 import botData from "../../data/botData";
+import { useState } from "react";
+import AnalysisModal from "../AnalysisModal";
 
 const req = {
     talc: 0,
@@ -53,8 +55,13 @@ export default function Sidebar({ chess = {} }) {
         downloadPGN = () => {},
         gameSummary = {},
         gameOver = false,
-        matchLocked = false
+        matchLocked = false,
+        analyzeGame = () => {},
+        analysisReady = false,
+        doldolcoin = 0
     } = chess;
+
+    const [analysisOpen, setAnalysisOpen] = useState(false);
 
     return (
         <aside className="sidebar">
@@ -221,13 +228,13 @@ export default function Sidebar({ chess = {} }) {
             </section>
 
             {gameOver && (
-                <button
-                    className="pgnButton"
-                    onClick={() => downloadPGN(gameSummary)}
-                >
-                    ⬇ PGN 저장
-                </button>
+                <div style={{display:"grid",gap:8,marginTop:12}}>
+                    <button className="pgnButton" onClick={async()=>{await analyzeGame();setAnalysisOpen(true)}} disabled={false}>📊 게임 분석하기</button>
+                    <button className="pgnButton" onClick={() => downloadPGN(gameSummary)}>⬇ PGN 저장</button>
+                </div>
             )}
+            <div className="coinMini">🪙 {Number(doldolcoin).toLocaleString()} 돌이코인</div>
+            <AnalysisModal open={analysisOpen} onClose={()=>setAnalysisOpen(false)} moves={analysisMoves} pgn={gameSummary?.pgn} accuracy={accuracy}/>
         </aside>
     );
 }
