@@ -65,7 +65,8 @@ export default function Board({ chess = {} }) {
         openAnalysis = analyzeGame,
         currentEvaluation = 0,
         playerProfile = { name: "나", rating: 0, image: "" },
-        lastAnalysis = null
+        lastAnalysis = null,
+        isThinking = false
     } = chess;
 
     const profile = botData[currentBot] || botData.talc || {};
