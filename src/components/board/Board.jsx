@@ -7,6 +7,7 @@ import Square from "./Square";
 import Piece from "../Piece";
 import SpeechBubble from "../SpeechBubble";
 import botData from "../../data/botData";
+import { supabase } from "../../supabase";
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 
@@ -35,6 +36,14 @@ export default function Board({ chess = {} }) {
     const [hiddenSquares, setHiddenSquares] = useState([]);
     const [animations, setAnimations] = useState([]);
     const pointerFromRef = useRef(null);
+    const [customization, setCustomization] = useState({
+        board_theme: "default",
+        piece_theme: "default",
+        move_effect: "default",
+        avatar_frame: "default",
+        title: "default",
+        sound: "default"
+    });
 
     const {
         position = "",
@@ -70,6 +79,30 @@ export default function Board({ chess = {} }) {
     } = chess;
 
     const profile = botData[currentBot] || botData.talc || {};
+
+    useEffect(() => {
+        let mounted = true;
+        const loadCustomization = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user || !mounted) return;
+            const { data } = await supabase
+                .from("user_customization")
+                .select("customization")
+                .eq("user_id", user.id)
+                .maybeSingle();
+            if (mounted && data?.customization) {
+                setCustomization((prev) => ({ ...prev, ...data.customization }));
+            }
+        };
+        loadCustomization();
+        return () => { mounted = false; };
+    }, []);
+
+    const boardTheme = customization.board_theme || "default";
+    const pieceTheme = customization.piece_theme || "default";
+    const moveEffect = customization.move_effect || "default";
+    const avatarFrame = customization.avatar_frame || "default";
+    const playerTitle = customization.title || "default";
     const game = new Chess(position || undefined);
 
     const getPiece = (square) => {
@@ -214,6 +247,7 @@ export default function Board({ chess = {} }) {
                     check={isCheck}
                 >
                     <Piece
+                        theme={pieceTheme}
                         piece={
                             hiddenSquares.includes(square)
                                 ? null
@@ -272,10 +306,11 @@ export default function Board({ chess = {} }) {
                     <div className="playerClock">{isThinking ? "● THINKING" : "READY"}</div>
                 </div>
                 <SpeechBubble key={chess.dialogKey} text={dialog} hide={!dialog} />
-                <div className="playerCard selfCard">
+                <div className={`playerCard selfCard avatar-frame-${avatarFrame}`}>
                     {playerProfile.image ? <img className="playerAvatar" src={playerProfile.image} alt="" /> : <div className="playerAvatar fallbackAvatar">♙</div>}
                     <div className="playerIdentity">
                         <div className="playerName">{playerProfile.name || "나"}</div>
+                        {playerTitle !== "default" && <div className="equippedTitle">{playerTitle === "title_master" ? "Rockey Master" : "Tactician"}</div>}
                         <div className="playerMeta">PLAYER · {Number(playerProfile.rating ?? rating ?? 0).toLocaleString()} 레이팅</div>
                     </div>
                     <div className="playerClock">{gameOver ? "FINISHED" : "YOUR TURN"}</div>
@@ -310,7 +345,7 @@ export default function Board({ chess = {} }) {
                                 <img
                                     key={`${piece}-${index}`}
                                     src={`${import.meta.env.BASE_URL}pieces/${piece}.png`}
-                                    className="capturedPiece"
+                                    className={`capturedPiece piece-theme-${pieceTheme}`}
                                     alt=""
                                 />
                             )
@@ -324,7 +359,7 @@ export default function Board({ chess = {} }) {
                     )}
                 </div>
 
-                <div className="board" ref={boardRef}>
+                <div className={`board board-theme-${boardTheme} move-effect-${moveEffect}`} ref={boardRef}>
                     {squares}
 
                     {animations.map((animation) => (
@@ -347,11 +382,21 @@ export default function Board({ chess = {} }) {
                         >
                             <img
                                 src={`${import.meta.env.BASE_URL}pieces/${animation.piece}.png`}
-                                className="movingPieceImg"
+                                className={`movingPieceImg piece-theme-${pieceTheme}`}
                                 alt=""
                             />
                         </div>
                     ))}
+
+                    {moveEffect !== "default" && (
+                        <div
+                            key={`${moveEffect}-${lastMove?.from || ""}-${lastMove?.to || ""}`}
+                            className={`moveEffectOverlay effect-${moveEffect}`}
+                            aria-hidden="true"
+                        >
+                            {moveEffect === "effect_spark" ? "✦" : "➜"}
+                        </div>
+                    )}
                 </div>
 
                 <div className="capturedRow">
@@ -361,7 +406,7 @@ export default function Board({ chess = {} }) {
                                 <img
                                     key={`${piece}-${index}`}
                                     src={`${import.meta.env.BASE_URL}pieces/${piece}.png`}
-                                    className="capturedPiece"
+                                    className={`capturedPiece piece-theme-${pieceTheme}`}
                                     alt=""
                                 />
                             )

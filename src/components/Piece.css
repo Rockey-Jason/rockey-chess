@@ -9,3 +9,8 @@
     user-select:none;
 
 }
+.piece { transition: filter .18s ease, transform .18s ease; }
+.piece-theme-theme_midnight { filter: saturate(.75) brightness(.92) contrast(1.08); }
+.piece-theme-theme_gold { filter: sepia(.7) saturate(1.9) brightness(1.05) drop-shadow(0 0 4px rgba(255,215,74,.32)); }
+.piece-theme-piece_classic { filter: contrast(1.08) saturate(.9); }
+.piece-theme-piece_neo { filter: saturate(1.25) brightness(1.08) contrast(1.08) drop-shadow(0 0 3px rgba(120,190,255,.24)); }

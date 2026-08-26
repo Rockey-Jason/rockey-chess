@@ -1,35 +1,21 @@
 import "./Piece.css";
 
-function Piece({
-
-    piece,
-
-    draggable,
-
-    onDragStart
-
+export default function Piece({
+  piece,
+  draggable,
+  onDragStart,
+  theme = "default",
+  className = "",
 }) {
+  if (!piece) return null;
 
-    if (!piece) return null;
-
-    return (
-
-        <img
-
-            className="piece"
-
-            src={`${import.meta.env.BASE_URL}pieces/${piece}.png`}
-
-            alt={piece}
-
-            draggable={draggable}
-
-            onDragStart={onDragStart}
-
-        />
-
-    );
-
+  return (
+    <img
+      className={`piece piece-theme-${theme} ${className}`}
+      src={`${import.meta.env.BASE_URL}pieces/${piece}.png`}
+      alt={piece}
+      draggable={draggable}
+      onDragStart={onDragStart}
+    />
+  );
 }
-
-export default Piece;
