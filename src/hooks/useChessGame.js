@@ -37,7 +37,9 @@ const STAT_KEYS = [
   "inaccuracy",
   "mistake",
   "blunder",
-  "miss"
+  "miss",
+  "book",
+  "forced"
 ];
 
 const emptyStats = () =>
@@ -50,78 +52,68 @@ const clamp = (n, a, b) =>
   Math.max(a, Math.min(b, n));
 
 
-function classifyMove(
-  cpl,
-  isBest,
-  move,
-  beforeGame,
-  afterGame,
-  beforeResult,
-  afterResult
-) {
+const BOOK_LINES = [
+  "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6",
+  "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3",
+  "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3",
+  "e4 c5 Nf3 e6 d4 cxd4 Nxd4 a6 Nc3",
+  "e4 e5 Nf3 Nc6 Bc4 Nf6 d3 Bc5 O-O O-O",
+  "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6",
+  "d4 d5 c4 c6 Nf3 Nf6 Nc3 dxc4 e4",
+  "c4 e5 Nc3 Nf6 Nf3 Nc6 g3",
+  "Nf3 d5 g3 Nf6 Bg2 e6 O-O Be7 d4",
+];
+const BOOK_PREFIXES = BOOK_LINES.map(line => line.split(/\s+/));
+
+function isBookMove(history, san) {
+  const next = [...history, san];
+  return BOOK_PREFIXES.some(line => next.length <= line.length && next.every((m, i) => m === line[i]));
+}
+
+function classifyMove(cpl, isBest, move, beforeGame, afterGame, beforeResult, afterResult, meta = {}) {
   const loss = Number.isFinite(cpl) ? Math.max(0, cpl) : 9999;
   const pieceValue = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
   const movedValue = pieceValue[move?.piece] ?? 0;
   const capturedValue = pieceValue[move?.captured] ?? 0;
-
   const givesCheck = Boolean(move?.san?.includes("+") || move?.san?.includes("#"));
   const isCapture = Boolean(move?.captured);
-
-  // A normal exchange/capture is NOT automatically a tactical/brilliant move.
-  // The previous classifier treated almost every capture as "Great/Brilliant",
-  // which made ordinary trades look artificially strong.
+  const legalCount = beforeGame?.moves?.().length ?? 0;
+  const forced = legalCount <= 1 || (beforeResult?.mate && isBest) || (meta.secondCpl != null && meta.secondCpl - loss >= 250 && isBest);
   const opponentColor = move?.color === "w" ? "b" : "w";
   let destinationAttacked = false;
-  try {
-    destinationAttacked = Boolean(
-      afterGame?.isAttacked?.(move?.to, opponentColor)
-    );
-  } catch {
-    destinationAttacked = false;
-  }
-
-  // A plausible sacrifice: a valuable piece moves onto an attacked square,
-  // or gives a forcing check while giving up material. Engine compensation
-  // (very low CPL) is still required below.
-  const sacrificeCandidate =
-    movedValue >= 3 &&
-    destinationAttacked &&
-    (!isCapture || capturedValue < movedValue);
-
+  try { destinationAttacked = Boolean(afterGame?.isAttacked?.(move?.to, opponentColor)); } catch {}
+  const sacrificeCandidate = movedValue >= 3 && destinationAttacked && (!isCapture || capturedValue < movedValue);
   const forcingTactic = givesCheck || sacrificeCandidate;
 
-  // Brilliant is deliberately rare. A routine capture, check, or best move
-  // must never become Brilliant merely because its CPL is small.
-  if (
-    !isBest &&
-    loss <= 12 &&
-    sacrificeCandidate &&
-    (givesCheck || capturedValue < movedValue)
-  ) {
-    return "brilliant";
-  }
+  // Book is a separate classification: a theoretically standard opening move.
+  if (meta.book) return "book";
+  if (forced && isBest) return "forced";
 
-  // Exact engine choice with negligible loss = Best.
-  if (isBest && loss <= 12) return "best";
-
-  // Great is reserved for genuinely strong, non-routine moves.
-  // A normal exchange/capture should not receive Great just because the
-  // engine likes the resulting position.
-  if (loss <= 20 && forcingTactic && !isCapture) return "great";
-  if (loss <= 20 && sacrificeCandidate && capturedValue < movedValue) {
-    return "great";
-  }
-
-  // Routine captures/trades are capped at Good unless they are the exact
-  // engine choice (Best was handled above). This prevents ordinary exchanges
-  // from being displayed as Excellent/Great.
+  // Brilliant is intentionally rare. It requires a real sacrifice and a strong engine result.
+  // Ordinary captures/checks/best moves never qualify.
+  const meaningfulSacrifice = sacrificeCandidate && (capturedValue < movedValue || !isCapture);
+  const secondGap = meta.secondCpl == null ? 0 : meta.secondCpl - loss;
+  if (!isBest && loss <= 20 && meaningfulSacrifice && (secondGap >= 120 || givesCheck)) return "brilliant";
+  if (isBest && loss <= 10 && meaningfulSacrifice && secondGap >= 180) return "brilliant";
+  if (isBest && loss <= 15) return "best";
+  if (loss <= 25 && forcingTactic && !isCapture) return "great";
+  if (loss <= 25 && meaningfulSacrifice) return "great";
   if (isCapture && !sacrificeCandidate) return "good";
-
-  if (loss <= 35) return "excellent";
-  if (loss <= 80) return "good";
-  if (loss <= 150) return "inaccuracy";
-  if (loss <= 300) return "mistake";
+  if (loss <= 40) return "excellent";
+  if (loss <= 90) return "good";
+  if (loss <= 180) return "inaccuracy";
+  if (loss <= 320) return "mistake";
   return "blunder";
+}
+
+
+function secondBestLoss(result, color, bestScore) {
+  const second = result?.candidates?.[1];
+  if (!second) return null;
+  const raw = second.mate != null ? (second.mate > 0 ? 100000 : -100000) : Number(second.score || 0);
+  const side = result.sideToMove === color ? 1 : -1;
+  const secondScore = raw * side;
+  return Math.max(0, bestScore - secondScore);
 }
 function accuracyFromCpl(cpl) {
   if (!Number.isFinite(cpl) || cpl <= 0) return 100;
@@ -152,6 +144,15 @@ function playerEval(result, color) {
     : -cp;
 }
 
+
+async function getLoginIdAndProfile() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { user: null, loginId: null, profile: {} };
+  const loginId = user.user_metadata?.login_id || user.user_metadata?.username || user.email?.split("@")[0] || user.id;
+  const { data, error } = await supabase.from("users").select("*").eq("login_id", loginId).maybeSingle();
+  if (error) console.warn("users(login_id) lookup failed", error);
+  return { user, loginId, profile: data || {} };
+}
 export default function useChessGame() {
   const gameRef = useRef(null);
 
@@ -161,9 +162,11 @@ export default function useChessGame() {
 
     const [currentBot, setCurrentBot] =
     useState("talc");
+  const [playerProfile, setPlayerProfile] = useState({ name: "나", rating: 0, image: "" });
 
   const [doldolcoin, setDoldolcoin] = useState(0);
   const [analysisReady, setAnalysisReady] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
   const savedGameRef = useRef(false);
 
   const game = gameRef.current;
@@ -420,37 +423,16 @@ const say = useCallback(
       new StockfishEngine();
 
     const loadRating = async () => {
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (
-        !user ||
-        !mountedRef.current
-      ) {
-        return;
-      }
-
-      const { data } =
-        await supabase
-          .from("users")
-          .select("chess_rating,doldolcoin")
-          .eq("id", user.id)
-          .maybeSingle();
-
-      if (
-        data &&
-        Number.isFinite(
-          Number(data.chess_rating)
-        )
-      ) {
-        setRating(
-          Number(data.chess_rating)
-        );
-      }
-      if (data && Number.isFinite(Number(data.doldolcoin))) {
-        setDoldolcoin(Number(data.doldolcoin));
-      }
+      const { profile } = await getLoginIdAndProfile();
+      if (!mountedRef.current) return;
+      const r = Number(profile.chess_rating);
+      if (Number.isFinite(r)) setRating(r);
+      if (Number.isFinite(Number(profile.doldolcoin))) setDoldolcoin(Number(profile.doldolcoin));
+      setPlayerProfile({
+        name: profile.nickname || profile.name || profile.login_id || "나",
+        rating: Number.isFinite(r) ? r : 0,
+        image: profile.profile_image || profile.avatar_url || profile.image_url || profile.profile_url || ""
+      });
     };
 
     loadRating();
@@ -605,7 +587,8 @@ const say = useCallback(
 
       setResult(finalResult);
 
-      playSound("checkmate");
+      playSound(finalResult === "1-0" ? "win" : "loss");
+      setTimeout(() => playSound("checkmate"), 80);
 
       /*
        * AI가 체크메이트를 했다면 botwin
@@ -625,6 +608,7 @@ const say = useCallback(
     } else {
       setWinner("Draw");
       setResult("1/2-1/2");
+      playSound("draw");
 
       say("stalemate", currentBot, {
         force: true
@@ -665,17 +649,12 @@ const say = useCallback(
         const beforeGame = new Chess(beforeFen);
         const afterGame = new Chess(afterFen);
 
-        let quality = classifyMove(
-          cpl,
-          isBest,
-          move,
-          beforeGame,
-          afterGame,
-          before,
-          after
-        );
+        let quality = classifyMove(cpl, isBest, move, beforeGame, afterGame, before, after, {
+          book: isBookMove(moveHistoryRef.current.slice(0, -1), move.san),
+          secondCpl: secondBestLoss(before, move.color, beforeScore)
+        });
 
-        if (isBest && quality !== "brilliant") quality = "best";
+        if (isBest && !["book", "forced", "brilliant"].includes(quality)) quality = "best";
 
         statsRef.current[quality] =
           (statsRef.current[quality] || 0) + 1;
@@ -738,16 +717,15 @@ const say = useCallback(
         const bestMove = String(before.bestMove || "").toLowerCase();
         const isBest = uci(move) === bestMove;
 
-        const quality = isBest
-          ? "best"
-          : classifyMove(
+        const quality = classifyMove(
               cpl,
               isBest,
               move,
               new Chess(beforeFen),
               new Chess(afterFen),
               before,
-              after
+              after,
+              { book: isBookMove(game.history().slice(0, -1), move.san), secondCpl: secondBestLoss(before, "b", beforeScore) }
             );
 
         const entry = {
@@ -872,17 +850,9 @@ const say = useCallback(
       setRatingChange(change);
       setShowRatingChange(true);
 
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        await supabase
-          .from("users")
-          .update({
-            chess_rating: next
-          })
-          .eq("id", user.id);
+      const { loginId } = await getLoginIdAndProfile();
+      if (loginId) {
+        await supabase.from("users").update({ chess_rating: next }).eq("login_id", loginId);
       }
     },
     [rating]
@@ -891,10 +861,10 @@ const say = useCallback(
   const saveCompletedGame = useCallback(async (summary, finalResult) => {
     if (savedGameRef.current) return;
     savedGameRef.current = true;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { user, loginId } = await getLoginIdAndProfile();
+    if (!user || !loginId) return;
     const { data, error } = await supabase.from("chess_games").insert({
-      user_id: user.id, mode: "bot", bot_id: currentBot, result: finalResult,
+      user_id: user.id, login_id: loginId, mode: "bot", bot_id: currentBot, result: finalResult,
       pgn: summary?.pgn || game.pgn(), accuracy: Number(summary?.accuracy || accuracy || 0),
       summary: summary || {}
     }).select("id").single();
@@ -917,10 +887,10 @@ const say = useCallback(
       const engine = analysisEngineRef.current;
       const replayGame = new Chess();
       for (let i=0;i<history.length;i++) {
-        const mv=history[i]; const beforeFen=replayGame.fen(); replayGame.move(mv); const afterFen=replayGame.fen();
+        const mv=history[i]; const beforeFen=replayGame.fen(); const beforeHistory=replayGame.history(); replayGame.move(mv); const afterFen=replayGame.fen();
         const before=await engine.analyzePosition(beforeFen,18); const after=await engine.analyzePosition(afterFen,18);
         const beforeScore=playerEval(before,mv.color), afterScore=playerEval(after,mv.color);
-        const cpl=Math.max(0,beforeScore-afterScore); const bestMove=String(before.bestMove||"").toLowerCase(); const quality=classifyMove(cpl,uci(mv)===bestMove,mv,new Chess(beforeFen),new Chess(afterFen),before,after);
+        const cpl=Math.max(0,beforeScore-afterScore); const bestMove=String(before.bestMove||"").toLowerCase(); const quality=classifyMove(cpl,uci(mv)===bestMove,mv,new Chess(beforeFen),new Chess(afterFen),before,after,{book:isBookMove(beforeHistory,mv.san),secondCpl:secondBestLoss(before,mv.color,beforeScore)});
         analysis.push({ply:i+1,moveNumber:Math.ceil((i+1)/2),san:mv.san,uci:uci(mv),quality,cpl:Number(cpl.toFixed(1)),accuracy:accuracyFromCpl(cpl),bestMove,evaluation:Number((playerEval(after,"w")/100).toFixed(2)),side:mv.color==="w"?"player":"bot"});
       }
       setAnalysisMoves(analysis);
@@ -933,6 +903,11 @@ const say = useCallback(
       return analysis;
     } catch(e) { console.warn("Full analysis failed",e); return []; }
   }, [game, gameOver, gameSummary]);
+
+  const openAnalysis = useCallback(async () => {
+    await analyzeGame();
+    setAnalysisOpen(true);
+  }, [analyzeGame]);
 
   useEffect(() => {
     if (
@@ -1574,6 +1549,7 @@ const say = useCallback(
         false;
       savedGameRef.current = false;
       setAnalysisReady(false);
+      setAnalysisOpen(false);
 
       startTimeRef.current =
         Date.now();
@@ -1622,6 +1598,7 @@ const say = useCallback(
     setGameOver(true);
     setWinner("Black");
     setResult("0-1");
+    playSound("loss");
 
     say(
       "botwin",
@@ -1639,6 +1616,7 @@ const say = useCallback(
     currentBot,
     finalizeSummary,
     gameOver,
+    playSound,
     say
   ]);
 
@@ -1656,7 +1634,8 @@ const say = useCallback(
       setWinner("Draw");
       setResult("1/2-1/2");
 
-      say(
+      playSound("draw");
+    say(
         "stalemate",
         currentBot,
         {
@@ -1673,6 +1652,7 @@ const say = useCallback(
       currentBot,
       finalizeSummary,
       gameOver,
+      playSound,
       say
     ]);
 
@@ -1779,8 +1759,12 @@ const say = useCallback(
     matchLocked: !gameOver && game.history().length > 0,
 
     currentBot,
+    playerProfile,
     doldolcoin,
     analysisReady,
+    analysisOpen,
+    setAnalysisOpen,
+    openAnalysis,
     analyzeGame,
 
     rating,

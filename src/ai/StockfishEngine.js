@@ -583,6 +583,9 @@ class StockfishEngine {
 
             let latestBestMove = null;
 
+            const multipv = new Map();
+            const pvScores = new Map();
+
             let finished = false;
 
 
@@ -625,6 +628,9 @@ class StockfishEngine {
                         msg.match(
                             /\bdepth\s+(\d+)/
                         );
+
+                    const multipvMatch = msg.match(/\bmultipv\s+(\d+)/);
+                    const pvIndex = multipvMatch ? Number(multipvMatch[1]) : 1;
 
 
                     if (!depthMatch) {
@@ -691,10 +697,8 @@ class StockfishEngine {
                                 mateMatch[1]
                             );
 
-                        latestScore =
-                            latestMate > 0
-                                ? 100000
-                                : -100000;
+                        latestScore = latestMate > 0 ? 100000 : -100000;
+                        pvScores.set(pvIndex, { score: latestScore, mate: latestMate, depth: infoDepth });
 
                     }
 
@@ -710,10 +714,14 @@ class StockfishEngine {
 
 
                     if (pvMatch) {
-
-                        latestBestMove =
-                            pvMatch[1];
-
+                        const pvMove = pvMatch[1];
+                        multipv.set(pvIndex, {
+                            move: pvMove,
+                            score: latestScore,
+                            mate: latestMate,
+                            depth: infoDepth
+                        });
+                        if (pvIndex === 1) latestBestMove = pvMove;
                     }
 
                 }
@@ -762,11 +770,9 @@ class StockfishEngine {
 
                     resolve({
 
-                        score:
-                            latestScore,
+                        score: pvScores.get(1)?.score ?? latestScore,
 
-                        mate:
-                            latestMate,
+                        mate: pvScores.get(1)?.mate ?? latestMate,
 
                         bestMove:
                             latestBestMove,
@@ -775,6 +781,10 @@ class StockfishEngine {
                             latestDepth,
 
                         sideToMove,
+
+                        candidates: Array.from(multipv.entries())
+                            .sort((a, b) => a[0] - b[0])
+                            .map(([, value]) => value),
 
                         searchId
 
@@ -813,10 +823,8 @@ class StockfishEngine {
 
             this.searching = true;
 
-
-            this.engine.postMessage(
-                `go depth ${depth}`
-            );
+            this.engine.postMessage(`setoption name MultiPV value 3`);
+            this.engine.postMessage(`go depth ${depth}`);
 
         });
 

@@ -45,4 +45,4 @@ gap:40px;
     height:80px;
     object-fit:contain;
     border-radius:50%;
-}
+}.layout{width:min(1220px,100%);margin:28px auto 0;display:grid;grid-template-columns:minmax(0,680px) minmax(280px,360px);justify-content:center;align-items:start;gap:28px;padding:0 16px;box-sizing:border-box}.app{animation:pageEnter .28s ease both}@keyframes pageEnter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}@media(max-width:900px){.layout{grid-template-columns:minmax(0,680px);gap:18px;padding:0 8px}.sidebar{width:100%}}@media(max-width:700px){.layout{margin-top:12px;gap:12px;padding:0 4px}.app{min-width:0}}

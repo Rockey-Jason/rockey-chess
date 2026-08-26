@@ -34,6 +34,7 @@ export default function Board({ chess = {} }) {
     const boardRef = useRef(null);
     const [hiddenSquares, setHiddenSquares] = useState([]);
     const [animations, setAnimations] = useState([]);
+    const pointerFromRef = useRef(null);
 
     const {
         position = "",
@@ -45,6 +46,7 @@ export default function Board({ chess = {} }) {
         inCheck = false,
         gameOver = false,
         currentBot = "talc",
+        rating = 0,
         dragMove = () => {},
         moveAnimations = [],
         promotionData,
@@ -59,7 +61,10 @@ export default function Board({ chess = {} }) {
         result = "",
         accuracy = 100,
         resetGame = () => {},
+        analyzeGame = () => {},
+        openAnalysis = analyzeGame,
         currentEvaluation = 0,
+        playerProfile = { name: "나", rating: 0, image: "" },
         lastAnalysis = null
     } = chess;
 
@@ -168,6 +173,24 @@ export default function Board({ chess = {} }) {
                     key={square}
                     color={light ? "light" : "dark"}
                     onClick={() => clickSquare(square)}
+                    onPointerDown={(event) => {
+                        if (event.pointerType === "touch" || event.pointerType === "pen") {
+                            const p = game.get(square);
+                            if (p?.color === "w") {
+                                pointerFromRef.current = square;
+                                event.currentTarget.setPointerCapture?.(event.pointerId);
+                                selectSquare(square);
+                            }
+                        }
+                    }}
+                    onPointerUp={(event) => {
+                        if (pointerFromRef.current && (event.pointerType === "touch" || event.pointerType === "pen")) {
+                            const from = pointerFromRef.current;
+                            pointerFromRef.current = null;
+                            if (from !== square) dragMove(from, square);
+                        }
+                    }}
+                    onPointerCancel={() => { pointerFromRef.current = null; }}
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => {
                         event.preventDefault();
@@ -238,30 +261,24 @@ export default function Board({ chess = {} }) {
 
     return (
         <div className="boardWrapper">
-            <div className="boardHeader">
-                <div className="opponentBox">
-                    <img
-                        className="opponentImage"
-                        src={profile.image}
-                        alt={profile.name || currentBot}
-                    />
-
-                    <div className="opponentInfo">
-                        <div className="opponentName">
-                            {profile.name || currentBot}
-                        </div>
-
-                        <div className="opponentLevel">
-                            Lv.{profile.level ?? 1}
-                        </div>
+            <div className="playerStack">
+                <div className="playerCard opponentCard">
+                    {profile.image ? <img className="playerAvatar" src={profile.image} alt="" /> : <div className="playerAvatar fallbackAvatar">♟</div>}
+                    <div className="playerIdentity">
+                        <div className="playerName">{profile.name || currentBot}</div>
+                        <div className="playerMeta">BOT · Lv.{profile.level ?? 1} · {botData[currentBot]?.rating ?? 0}</div>
                     </div>
+                    <div className="playerClock">{isThinking ? "● THINKING" : "READY"}</div>
                 </div>
-
-                <SpeechBubble
-                    key={chess.dialogKey}
-                    text={dialog}
-                    hide={!dialog}
-                />
+                <SpeechBubble key={chess.dialogKey} text={dialog} hide={!dialog} />
+                <div className="playerCard selfCard">
+                    {playerProfile.image ? <img className="playerAvatar" src={playerProfile.image} alt="" /> : <div className="playerAvatar fallbackAvatar">♙</div>}
+                    <div className="playerIdentity">
+                        <div className="playerName">{playerProfile.name || "나"}</div>
+                        <div className="playerMeta">PLAYER · {Number(playerProfile.rating ?? rating ?? 0).toLocaleString()} 레이팅</div>
+                    </div>
+                    <div className="playerClock">{gameOver ? "FINISHED" : "YOUR TURN"}</div>
+                </div>
             </div>
 
             <div className="evaluationBarRow">
@@ -395,11 +412,9 @@ export default function Board({ chess = {} }) {
 
                         <button
                             className="primaryAction"
-                            onClick={() =>
-                                downloadPGN(gameSummary)
-                            }
+                            onClick={() => openAnalysis()}
                         >
-                            기보 저장
+                            📊 게임 분석하기
                         </button>
 
                         <button
