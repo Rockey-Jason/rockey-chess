@@ -63,8 +63,10 @@ export default function Sidebar({ chess = {} }) {
         openAnalysis = analyzeGame,
         analysisOpen = false,
         setAnalysisOpen = () => {},
+        analysisBusy = false,
         analysisReady = false,
-        doldolcoin = 0
+        doldolcoin = 0,
+        rockKingCoin = 0
     } = chess;
 
     return (
@@ -233,11 +235,11 @@ export default function Sidebar({ chess = {} }) {
 
             {gameOver && (
                 <div style={{display:"grid",gap:8,marginTop:12}}>
-                    <button className="pgnButton" onClick={openAnalysis}>📊 게임 분석하기</button>
+                    <button className="pgnButton" onClick={openAnalysis} disabled={analysisBusy}>{analysisBusy ? "⏳ 분석 준비 중…" : "📊 게임 분석하기"}</button>
                 </div>
             )}
-            <div className="coinMini">🪙 {Number(doldolcoin).toLocaleString()} 돌이코인</div>
-            <AnalysisModal open={analysisOpen} onClose={()=>setAnalysisOpen(false)} moves={analysisMoves} pgn={gameSummary?.pgn} accuracy={accuracy}/>
+            <div className="coinMini">🪙 {Number(rockKingCoin).toLocaleString()} ROCK-KING-COIN</div>
+            <AnalysisModal open={analysisOpen} onClose={()=>setAnalysisOpen(false)} moves={analysisMoves} pgn={gameSummary?.pgn} accuracy={accuracy} loading={analysisBusy}/>
         </aside>
     );
 }

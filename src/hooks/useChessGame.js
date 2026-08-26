@@ -165,8 +165,10 @@ export default function useChessGame() {
   const [playerProfile, setPlayerProfile] = useState({ name: "나", rating: 0, image: "" });
 
   const [doldolcoin, setDoldolcoin] = useState(0);
+  const [rockKingCoin, setRockKingCoin] = useState(0);
   const [analysisReady, setAnalysisReady] = useState(false);
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [analysisBusy, setAnalysisBusy] = useState(false);
   const savedGameRef = useRef(false);
 
   const game = gameRef.current;
@@ -428,6 +430,7 @@ const say = useCallback(
       const r = Number(profile.chess_rating);
       if (Number.isFinite(r)) setRating(r);
       if (Number.isFinite(Number(profile.doldolcoin))) setDoldolcoin(Number(profile.doldolcoin));
+      if (Number.isFinite(Number(profile.rock_king_coin))) setRockKingCoin(Number(profile.rock_king_coin));
       setPlayerProfile({
         name: profile.nickname || profile.name || profile.login_id || "나",
         rating: Number.isFinite(r) ? r : 0,
@@ -870,15 +873,18 @@ const say = useCallback(
     }).select("id").single();
     if (error) console.warn("Game save failed", error);
     const reward = finalResult === "1-0" ? 100 : finalResult === "1/2-1/2" ? 40 : 15;
-    const { data: coinData, error: coinError } = await supabase.rpc("award_doldolcoin", { p_amount: reward });
-    if (!coinError && coinData?.balance !== undefined) setDoldolcoin(Number(coinData.balance));
+    const { data: coinData, error: coinError } = await supabase.rpc("award_rock_king_coin", { p_amount: reward, p_login_id: loginId });
+    if (!coinError && coinData?.balance !== undefined) setRockKingCoin(Number(coinData.balance));
     return data?.id || null;
   }, [accuracy, currentBot, game]);
 
   const analyzeGame = useCallback(async () => {
-    if (!gameOver) return;
-    const pgn = gameSummary?.pgn || game.pgn();
-    if (!pgn) return;
+    if (!gameOver) return [];
+    const pgn = gameSummary?.pgn || game.pgn({ newline: "\n" });
+    if (!pgn) return [];
+    if (!gameSummary?.pgn) {
+      setGameSummary(prev => ({ ...prev, ...finalizeSummary(result), pgn }));
+    }
     try {
       const replay = new Chess();
       replay.loadPgn(pgn);
@@ -902,12 +908,18 @@ const say = useCallback(
       setLastAnalysis(analysis[analysis.length-1]||null);
       return analysis;
     } catch(e) { console.warn("Full analysis failed",e); return []; }
-  }, [game, gameOver, gameSummary]);
+  }, [finalizeSummary, game, gameOver, gameSummary, result]);
 
   const openAnalysis = useCallback(async () => {
-    await analyzeGame();
+    if (!gameOver) return;
     setAnalysisOpen(true);
-  }, [analyzeGame]);
+    setAnalysisBusy(true);
+    try {
+      await analyzeGame();
+    } finally {
+      setAnalysisBusy(false);
+    }
+  }, [analyzeGame, gameOver]);
 
   useEffect(() => {
     if (
@@ -1761,9 +1773,11 @@ const say = useCallback(
     currentBot,
     playerProfile,
     doldolcoin,
+    rockKingCoin,
     analysisReady,
     analysisOpen,
     setAnalysisOpen,
+    analysisBusy,
     openAnalysis,
     analyzeGame,
 

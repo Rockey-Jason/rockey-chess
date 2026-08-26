@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import "../App.css";
-import TopBar from "../components/layout/TopBar";
 import Sidebar from "../components/sidebar/Sidebar";
 import Board from "../components/board/Board";
 import useChessGame from "../hooks/useChessGame";
@@ -75,8 +74,6 @@ export default function Chess() {
 
     return (
         <div className="app">
-            <TopBar chess={chess} />
-
             <main className="layout">
                 <Board chess={chess} />
                 <Sidebar chess={chess} />
