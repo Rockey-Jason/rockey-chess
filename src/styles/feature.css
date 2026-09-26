@@ -160,3 +160,33 @@
   .reviewEval span{grid-column:1/-1}
   .reviewEval strong{font-size:25px}
 }
+
+
+/* Analysis modal lives inside the game sidebar.
+   Override sidebar-wide button rules so the review UI keeps its own layout. */
+.analysisBackdrop .closeButton{
+  display:inline-flex!important;
+  width:auto!important;
+  min-width:0!important;
+  min-height:0!important;
+  flex:0 0 auto!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+.analysisBackdrop .analysisMoveRow{
+  display:grid!important;
+  width:100%!important;
+  min-height:52px!important;
+  flex:none!important;
+  align-items:center!important;
+  justify-content:initial!important;
+}
+.analysisBackdrop .reviewPager button{
+  display:inline-flex!important;
+  width:auto!important;
+  min-width:0!important;
+  min-height:0!important;
+  flex:1 1 0!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
