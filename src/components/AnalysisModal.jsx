@@ -57,18 +57,20 @@ export default function AnalysisModal({ open, onClose, moves = [], pgn = "", acc
       <div className="analysisLayout">
         <section className="analysisMoves">
           <div className="analysisSectionTitle">수별 평가 · 클릭해서 포지션 보기</div>
-          {moves.length === 0 ? <div className="emptyAnalysis">분석할 기보가 없습니다.</div> : moves.map((m,i)=><button key={`${m.uci}-${i}`} className={`analysisMoveRow ${selected===i?"active":""}`} onClick={()=>setSelected(i)}>
+          {moves.length === 0 ? <div className="emptyAnalysis">분석할 기보가 없습니다.</div> : moves.map((m,i)=><button key={`${m.uci}-${i}`} style={{"--row-index": i}} className={`analysisMoveRow ${selected===i?"active":""}`} onClick={()=>setSelected(i)}>
             <span className="moveIndex">{Math.ceil(m.ply/2)}{m.side==="bot"?"…":"."}</span><b>{m.san}</b><span className={`analysisQuality quality-${m.quality}`}>{labels[m.quality]||m.quality}</span><span className="moveCpl">{Number(m.evaluation||0)>0?"+":""}{Number(m.evaluation||0).toFixed(2)}</span>
           </button>)}
         </section>
         <section className="analysisDetail">
           {active ? <>
             <div className="reviewVisual"><MiniBoard game={position}/><div className="reviewEval"><span>ENGINE EVALUATION</span><strong>{Number(active.evaluation||0)>0?"+":""}{Number(active.evaluation||0).toFixed(2)}</strong><small>{active.cpl} CPL</small></div></div>
-            <div className={`detailBadge quality-${active.quality}`}>{labels[active.quality]||active.quality}</div>
-            <h3>{active.san}</h3><p>{descriptions[active.quality]||"엔진 분석 결과입니다."}</p>
-            <div className="detailGrid"><div><span>정확도</span><b>{active.accuracy}%</b></div><div><span>CPL</span><b>{active.cpl}</b></div><div><span>최선수</span><b>{active.bestMove||"—"}</b></div><div><span>분류</span><b>{labels[active.quality]||active.quality}</b></div></div>
-            <div className="reviewPager"><button disabled={selected<=0} onClick={()=>setSelected(v=>Math.max(0,v-1))}>← 이전 수</button><span>{selected+1} / {moves.length}</span><button disabled={selected>=moves.length-1} onClick={()=>setSelected(v=>Math.min(moves.length-1,v+1))}>다음 수 →</button></div>
-          </> : <p>선택할 수가 없습니다.</p>}
+            <div key={`detail-${selected}-${active.uci || active.san}`} className="analysisDetailContent">
+              <div className={`detailBadge quality-${active.quality}`}>{labels[active.quality]||active.quality}</div>
+              <h3>{active.san}</h3><p>{descriptions[active.quality]||"엔진 분석 결과입니다."}</p>
+              <div className="detailGrid"><div><span>정확도</span><b>{active.accuracy}%</b></div><div><span>CPL</span><b>{active.cpl}</b></div><div><span>최선수</span><b>{active.bestMove||"—"}</b></div><div><span>분류</span><b>{labels[active.quality]||active.quality}</b></div></div>
+              <div className="reviewPager"><button disabled={selected<=0} onClick={()=>setSelected(v=>Math.max(0,v-1))}>← 이전 수</button><span>{selected+1} / {moves.length}</span><button disabled={selected>=moves.length-1} onClick={()=>setSelected(v=>Math.min(moves.length-1,v+1))}>다음 수 →</button></div>
+            </div>
+          </> : <p className="analysisNoSelection">선택할 수가 없습니다.</p>}
         </section>
       </div>}
       <details className="pgnDetails"><summary>PGN 보기</summary><pre>{pgn||"PGN 없음"}</pre></details>
