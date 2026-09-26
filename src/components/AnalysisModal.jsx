@@ -63,7 +63,7 @@ export default function AnalysisModal({ open, onClose, moves = [], pgn = "", acc
         </section>
         <section className="analysisDetail">
           {active ? <>
-            <div className="reviewVisual"><MiniBoard game={position}/><div className="reviewEval"><span>ENGINE EVALUATION</span><strong>{Number(active.evaluation||0)>0?"+":""}{Number(active.evaluation||0).toFixed(2)}</strong><small>{active.cpl} CPL</small></div></div>
+            <div key={`visual-${selected}-${active.uci || active.san}`} className="reviewVisual"><MiniBoard game={position}/><div className="reviewEval"><span>ENGINE EVALUATION</span><strong>{Number(active.evaluation||0)>0?"+":""}{Number(active.evaluation||0).toFixed(2)}</strong><small>{active.cpl} CPL</small></div></div>
             <div key={`detail-${selected}-${active.uci || active.san}`} className="analysisDetailContent">
               <div className={`detailBadge quality-${active.quality}`}>{labels[active.quality]||active.quality}</div>
               <h3>{active.san}</h3><p>{descriptions[active.quality]||"엔진 분석 결과입니다."}</p>
