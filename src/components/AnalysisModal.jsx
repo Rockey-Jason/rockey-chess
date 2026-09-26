@@ -159,5 +159,5 @@ export default function AnalysisModal({ open, onClose, moves = [], pgn = "", acc
       </div>}
       <details className="pgnDetails"><summary>PGN 보기</summary><pre>{pgn||"PGN 없음"}</pre></details>
     </div>
-  </div>;
+  </div>, document.body);
 }
