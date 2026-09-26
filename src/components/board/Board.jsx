@@ -193,6 +193,101 @@ export default function Board({ chess = {} }) {
         };
     }, [moveAnimations]);
 
+    const [dragVisual, setDragVisual] = useState(null);
+
+    const getBoardPointer = (event) => {
+        if (!boardRef.current) return null;
+        const rect = boardRef.current.getBoundingClientRect();
+        const size = rect.width / 8;
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        return {
+            x,
+            y,
+            size,
+            inside: x >= 0 && y >= 0 && x <= rect.width && y <= rect.height
+        };
+    };
+
+    const getSquareFromPointer = (event) => {
+        const pointer = getBoardPointer(event);
+        if (!pointer || !pointer.inside) return null;
+
+        const col = Math.max(0, Math.min(7, Math.floor(pointer.x / pointer.size)));
+        const row = Math.max(0, Math.min(7, Math.floor(pointer.y / pointer.size)));
+
+        return files[col] + (8 - row);
+    };
+
+    const updateDragVisual = (event) => {
+        if (!pointerFromRef.current || !boardRef.current) return;
+
+        const pointer = getBoardPointer(event);
+        if (!pointer) return;
+
+        setDragVisual((prev) => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                x: pointer.x - pointer.size / 2,
+                y: pointer.y - pointer.size / 2,
+                size: pointer.size
+            };
+        });
+    };
+
+    const startPointerDrag = (event, square) => {
+        const p = game.get(square);
+        if (p?.color !== "w" || gameOver || isThinking) return;
+
+        pointerFromRef.current = square;
+        suppressClickRef.current = false;
+        selectSquare(square);
+
+        const pointer = getBoardPointer(event);
+        if (!pointer) return;
+
+        try {
+            event.currentTarget.setPointerCapture?.(event.pointerId);
+        } catch {}
+
+        setDragVisual({
+            piece: `w${p.type.toUpperCase()}`,
+            x: pointer.x - pointer.size / 2,
+            y: pointer.y - pointer.size / 2,
+            size: pointer.size
+        });
+    };
+
+    const finishPointerDrag = (event) => {
+        const from = pointerFromRef.current;
+        if (!from) return;
+
+        const to = getSquareFromPointer(event);
+
+        try {
+            event.currentTarget.releasePointerCapture?.(event.pointerId);
+        } catch {}
+
+        pointerFromRef.current = null;
+        setDragVisual(null);
+
+        if (to && from !== to) {
+            suppressClickRef.current = true;
+            dragMove(from, to);
+        } else if (to === from) {
+            suppressClickRef.current = false;
+        }
+    };
+
+    const cancelPointerDrag = (event) => {
+        pointerFromRef.current = null;
+        setDragVisual(null);
+        try {
+            event.currentTarget.releasePointerCapture?.(event.pointerId);
+        } catch {}
+    };
+
     const squares = [];
 
     for (let row = 8; row >= 1; row -= 1) {
@@ -214,23 +309,10 @@ export default function Board({ chess = {} }) {
                         }
                         clickSquare(square);
                     }}
-                    onPointerDown={() => {
-                        const p = game.get(square);
-                        if (p?.color === "w" && !gameOver && !isThinking) {
-                            pointerFromRef.current = square;
-                            selectSquare(square);
-                        }
-                    }}
-                    onPointerUp={() => {
-                        const from = pointerFromRef.current;
-                        if (!from) return;
-                        pointerFromRef.current = null;
-                        if (from !== square) {
-                            suppressClickRef.current = true;
-                            dragMove(from, square);
-                        }
-                    }}
-                    onPointerCancel={() => { pointerFromRef.current = null; }}
+                    onPointerDown={(event) => startPointerDrag(event, square)}
+                    onPointerMove={updateDragVisual}
+                    onPointerUp={finishPointerDrag}
+                    onPointerCancel={cancelPointerDrag}
                     onPointerLeave={() => {}}
                     onDragStart={(event) => event.preventDefault()}
                     onDragOver={(event) => event.preventDefault()}
@@ -256,7 +338,8 @@ export default function Board({ chess = {} }) {
                     <Piece
                         theme={pieceTheme}
                         piece={
-                            hiddenSquares.includes(square)
+                            hiddenSquares.includes(square) ||
+                            dragVisual?.piece && pointerFromRef.current === square
                                 ? null
                                 : piece
                         }
@@ -359,6 +442,24 @@ export default function Board({ chess = {} }) {
 
                 <div className={`board board-theme-${boardTheme} move-effect-${moveEffect}`} ref={boardRef}>
                     {squares}
+
+                    {dragVisual && (
+                        <div
+                            className="draggingPiece"
+                            style={{
+                                width: dragVisual.size,
+                                height: dragVisual.size,
+                                transform: `translate(${dragVisual.x}px, ${dragVisual.y}px)`
+                            }}
+                            aria-hidden="true"
+                        >
+                            <img
+                                src={`${import.meta.env.BASE_URL}pieces/${dragVisual.piece}.png`}
+                                className={`movingPieceImg piece-theme-${pieceTheme}`}
+                                alt=""
+                            />
+                        </div>
+                    )}
 
                     {animations.map((animation) => (
                         <div
