@@ -27,7 +27,6 @@ function gameAtPly(pgn, ply) {
 
 function AnimatedMiniBoard({ pgn, ply }) {
   const current = useMemo(() => gameAtPly(pgn, ply), [pgn, ply]);
-  const previous = useMemo(() => gameAtPly(pgn, Math.max(0, ply - 1)), [pgn, ply]);
   const [moving, setMoving] = useState(null);
 
   useEffect(() => {
@@ -123,7 +122,6 @@ export default function AnalysisModal({ open, onClose, moves = [], pgn = "", acc
   useEffect(() => { setSelected(Math.max(0, moves.length - 1)); }, [moves.length]);
   const active = moves[selected] || null;
   const counts = useMemo(() => moves.reduce((a,m)=>{a[m.quality]=(a[m.quality]||0)+1;return a},{}), [moves]);
-  const position = useMemo(() => positionAtPly(pgn, active?.ply || 0), [pgn, active?.ply]);
   if (!open) return null;
   return <div className="analysisBackdrop">
     <div className="analysisShell">
