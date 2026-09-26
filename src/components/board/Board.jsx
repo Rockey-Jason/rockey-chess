@@ -236,6 +236,34 @@ export default function Board({ chess = {} }) {
         });
     };
 
+    // 드래그 중에는 특정 Square가 아니라 보드 전체에서 포인터를 추적한다.
+    // 이렇게 해야 커서가 다른 칸으로 이동해도 기물이 커서를 계속 따라간다.
+    useEffect(() => {
+        if (!dragVisual || !pointerFromRef.current) return;
+
+        const handlePointerMove = (event) => {
+            updateDragVisual(event);
+        };
+
+        const handlePointerUp = (event) => {
+            finishPointerDrag(event);
+        };
+
+        const handlePointerCancel = (event) => {
+            cancelPointerDrag(event);
+        };
+
+        window.addEventListener("pointermove", handlePointerMove);
+        window.addEventListener("pointerup", handlePointerUp);
+        window.addEventListener("pointercancel", handlePointerCancel);
+
+        return () => {
+            window.removeEventListener("pointermove", handlePointerMove);
+            window.removeEventListener("pointerup", handlePointerUp);
+            window.removeEventListener("pointercancel", handlePointerCancel);
+        };
+    }, [dragVisual]);
+
     const startPointerDrag = (event, square) => {
         const p = game.get(square);
         if (p?.color !== "w" || gameOver || isThinking) return;
@@ -310,9 +338,6 @@ export default function Board({ chess = {} }) {
                         clickSquare(square);
                     }}
                     onPointerDown={(event) => startPointerDrag(event, square)}
-                    onPointerMove={updateDragVisual}
-                    onPointerUp={finishPointerDrag}
-                    onPointerCancel={cancelPointerDrag}
                     onPointerLeave={() => {}}
                     onDragStart={(event) => event.preventDefault()}
                     onDragOver={(event) => event.preventDefault()}
@@ -440,7 +465,13 @@ export default function Board({ chess = {} }) {
                     )}
                 </div>
 
-                <div className={`board board-theme-${boardTheme} move-effect-${moveEffect}`} ref={boardRef}>
+                <div
+                    className={`board board-theme-${boardTheme} move-effect-${moveEffect}`}
+                    ref={boardRef}
+                    onPointerMove={updateDragVisual}
+                    onPointerUp={finishPointerDrag}
+                    onPointerCancel={cancelPointerDrag}
+                >
                     {squares}
 
                     {dragVisual && (
