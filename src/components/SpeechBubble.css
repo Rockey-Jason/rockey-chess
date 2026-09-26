@@ -1,0 +1,102 @@
+/* =========================================================
+   ROCKEY CHESS — CHARACTER SPEECH BUBBLE
+========================================================= */
+
+.speechBubble {
+    position: relative;
+    flex: 0 1 auto;
+    min-height: 50px;
+    padding: 12px 18px;
+    box-sizing: border-box;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: rgba(255, 255, 255, 0.98);
+    color: #111;
+
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 18px;
+
+    font-size: 15px;
+    font-weight: 750;
+    line-height: 1.4;
+    text-align: center;
+
+    box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.24),
+        0 2px 6px rgba(0, 0, 0, 0.12);
+
+    opacity: 0;
+    transform: translateY(7px) scale(0.94);
+    transform-origin: left center;
+
+    transition:
+        opacity 260ms ease,
+        transform 360ms cubic-bezier(.22, 1, .36, 1);
+
+    pointer-events: none;
+    z-index: 100;
+}
+
+.speechBubble.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.speechBubble.hide {
+    opacity: 0;
+    transform: translateY(5px) scale(0.94);
+}
+
+.speechText {
+    display: block;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+}
+
+.speechCursor {
+    display: inline-block;
+    margin-left: 2px;
+    font-size: .85em;
+    opacity: .65;
+    animation: speechCursorBlink .7s steps(1) infinite;
+}
+
+.speechTail {
+    position: absolute;
+    left: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+
+    width: 0;
+    height: 0;
+
+    border-top: 9px solid transparent;
+    border-bottom: 9px solid transparent;
+    border-right: 11px solid rgba(255, 255, 255, .98);
+}
+
+@keyframes speechCursorBlink {
+    0%, 45% { opacity: .7; }
+    46%, 100% { opacity: 0; }
+}
+
+@media (max-width: 700px) {
+    .speechBubble {
+        min-height: 43px;
+        padding: 9px 13px;
+        border-radius: 15px;
+        font-size: 13px;
+    }
+
+    .speechTail {
+        left: -8px;
+        border-top-width: 7px;
+        border-bottom-width: 7px;
+        border-right-width: 9px;
+    }
+}
