@@ -21,19 +21,101 @@ function positionAtPly(pgn, ply) {
   } catch { return game; }
 }
 
-function MiniBoard({ game }) {
+function gameAtPly(pgn, ply) {
+  return positionAtPly(pgn, ply);
+}
+
+function AnimatedMiniBoard({ pgn, ply }) {
+  const current = useMemo(() => gameAtPly(pgn, ply), [pgn, ply]);
+  const previous = useMemo(() => gameAtPly(pgn, Math.max(0, ply - 1)), [pgn, ply]);
+  const [moving, setMoving] = useState(null);
+
+  useEffect(() => {
+    if (!ply || !pgn) {
+      setMoving(null);
+      return;
+    }
+
+    try {
+      const temp = new Chess();
+      temp.loadPgn(pgn);
+      const history = temp.history({ verbose: true });
+      const move = history[ply - 1];
+      if (!move) {
+        setMoving(null);
+        return;
+      }
+
+      setMoving({
+        from: move.from,
+        to: move.to,
+        piece: move.piece,
+        color: move.color,
+        id: `${ply}-${move.from}-${move.to}`,
+        phase: "start"
+      });
+
+      const raf = requestAnimationFrame(() => {
+        setMoving(prev => prev ? { ...prev, phase: "move" } : prev);
+      });
+
+      const timer = window.setTimeout(() => setMoving(null), 430);
+      return () => {
+        cancelAnimationFrame(raf);
+        window.clearTimeout(timer);
+      };
+    } catch {
+      setMoving(null);
+    }
+  }, [pgn, ply]);
+
   const cells = [];
   for (let rank = 8; rank >= 1; rank--) {
     for (let fi = 0; fi < 8; fi++) {
       const square = files[fi] + rank;
-      const piece = game.get(square);
+      const piece = current.get(square);
       const light = (rank + fi) % 2 === 0;
-      cells.push(<div key={square} className={`reviewSquare ${light ? "light" : "dark"}`}>
-        {piece && <img src={`${import.meta.env.BASE_URL}pieces/${piece.color}${piece.type.toUpperCase()}.png`} alt="" />}
-      </div>);
+      const isAnimatedDestination = moving?.to === square && moving?.phase === "move";
+      const shouldHideDestinationPiece = moving?.to === square && moving?.phase !== null;
+
+      cells.push(
+        <div key={square} className={`reviewSquare ${light ? "light" : "dark"} ${isAnimatedDestination ? "reviewDestination" : ""}`}>
+          {piece && !shouldHideDestinationPiece && (
+            <img
+              className="reviewPiece"
+              src={`${import.meta.env.BASE_URL}pieces/${piece.color}${piece.type.toUpperCase()}.png`}
+              alt=""
+            />
+          )}
+        </div>
+      );
     }
   }
-  return <div className="reviewBoard">{cells}</div>;
+
+  const fromFile = moving ? files.indexOf(moving.from[0]) : 0;
+  const fromRank = moving ? 8 - Number(moving.from[1]) : 0;
+  const toFile = moving ? files.indexOf(moving.to[0]) : 0;
+  const toRank = moving ? 8 - Number(moving.to[1]) : 0;
+
+  return (
+    <div className="reviewBoard">
+      {cells}
+      {moving && (
+        <img
+          key={moving.id}
+          className={`reviewMovingPiece phase-${moving.phase}`}
+          src={`${import.meta.env.BASE_URL}pieces/${moving.color}${moving.piece.toUpperCase()}.png`}
+          alt=""
+          style={{
+            "--from-x": fromFile,
+            "--from-y": fromRank,
+            "--to-x": toFile,
+            "--to-y": toRank
+          }}
+        />
+      )}
+    </div>
+  );
 }
 
 export default function AnalysisModal({ open, onClose, moves = [], pgn = "", accuracy = 0, loading = false }) {
@@ -63,7 +145,10 @@ export default function AnalysisModal({ open, onClose, moves = [], pgn = "", acc
         </section>
         <section className="analysisDetail">
           {active ? <>
-            <div key={`visual-${selected}-${active.uci || active.san}`} className="reviewVisual"><MiniBoard game={position}/><div className="reviewEval"><span>ENGINE EVALUATION</span><strong>{Number(active.evaluation||0)>0?"+":""}{Number(active.evaluation||0).toFixed(2)}</strong><small>{active.cpl} CPL</small></div></div>
+            <div key={`visual-${selected}-${active.uci || active.san}`} className="reviewVisual">
+              <AnimatedMiniBoard pgn={pgn} ply={active.ply || 0}/>
+              <div className="reviewEval"><span>ENGINE EVALUATION</span><strong>{Number(active.evaluation||0)>0?"+":""}{Number(active.evaluation||0).toFixed(2)}</strong><small>{active.cpl} CPL</small></div>
+            </div>
             <div key={`detail-${selected}-${active.uci || active.san}`} className="analysisDetailContent">
               <div className={`detailBadge quality-${active.quality}`}>{labels[active.quality]||active.quality}</div>
               <h3>{active.san}</h3><p>{descriptions[active.quality]||"엔진 분석 결과입니다."}</p>
