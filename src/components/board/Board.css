@@ -101,6 +101,6 @@
   -webkit-user-drag:none;
 }
 @keyframes dragPieceLift{
-  from{opacity:.7;transform:scale(.94)}
-  to{opacity:1;transform:scale(1.06)}
+  from{opacity:.72}
+  to{opacity:1}
 }
