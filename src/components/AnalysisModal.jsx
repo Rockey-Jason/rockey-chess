@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Chess } from "chess.js";
 import "../styles/feature.css";
 
@@ -123,7 +124,7 @@ export default function AnalysisModal({ open, onClose, moves = [], pgn = "", acc
   const active = moves[selected] || null;
   const counts = useMemo(() => moves.reduce((a,m)=>{a[m.quality]=(a[m.quality]||0)+1;return a},{}), [moves]);
   if (!open) return null;
-  return <div className="analysisBackdrop">
+  return createPortal(<div className="analysisBackdrop">
     <div className="analysisShell">
       <header className="analysisTop">
         <div><div className="analysisKicker">ROCKEY CHESS · GAME REVIEW</div><h2>게임 분석</h2><p>게임이 끝난 뒤에만 엔진 평가가 공개됩니다.</p></div>
