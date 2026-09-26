@@ -23,3 +23,65 @@
 .loadingOrb{width:58px;height:58px;border-radius:50%;border:3px solid rgba(255,255,255,.1);border-top-color:#69d46e;animation:analysisSpin .8s linear infinite}
 @keyframes analysisSpin{to{transform:rotate(360deg)}}
 @media(max-width:800px){.analysisLayout{grid-template-columns:1fr!important}.analysisMoves{max-height:34vh}.detailGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.analysisShell{width:98vw;max-height:94vh}}
+
+/* Analysis motion + collision-safe layout polish */
+.analysisShell{box-sizing:border-box;scroll-behavior:smooth}
+.analysisTop{min-width:0}
+.analysisTop>div:first-child{min-width:0;flex:1}
+.analysisTop h2{line-height:1.12;overflow-wrap:anywhere}
+.analysisTop p{margin:7px 0 0;line-height:1.5}
+.closeButton{flex:0 0 auto;white-space:nowrap}
+.analysisOverview{position:relative!important;top:auto!important;display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr);gap:14px;align-items:stretch}
+.accuracyHero{min-width:0}
+.analysisCounts{min-width:0;align-content:flex-start}
+.analysisLayout{min-width:0;align-items:start}
+.analysisMoves,.analysisDetail{min-width:0}
+.analysisMoves{overscroll-behavior:contain}
+.analysisSectionTitle{line-height:1.45;white-space:normal}
+.analysisMoveRow{min-height:52px;box-sizing:border-box;animation:analysisRowIn .28s cubic-bezier(.22,1,.36,1) both;animation-delay:min(calc(var(--row-index) * 18ms),220ms)}
+.analysisMoveRow b,.analysisQuality,.moveCpl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.analysisMoveRow b{font-size:13px}
+.reviewVisual{animation:reviewVisualIn .38s cubic-bezier(.22,1,.36,1) both}
+.reviewBoard{flex:none}
+.reviewEval{z-index:2;max-width:calc(100% - 24px);box-sizing:border-box}
+.reviewEval strong{font-variant-numeric:tabular-nums}
+.analysisDetailContent{animation:analysisDetailIn .32s cubic-bezier(.22,1,.36,1) both}
+.analysisDetailContent h3{line-height:1.1;overflow-wrap:anywhere}
+.analysisDetailContent p{margin:8px 0 0;overflow-wrap:anywhere}
+.detailGrid>div{min-width:0;overflow:hidden}
+.detailGrid b{overflow-wrap:anywhere;line-height:1.25}
+.reviewPager{flex-wrap:wrap}
+.reviewPager button{min-width:0;white-space:nowrap}
+.analysisNoSelection{padding:24px;color:#8295ae}
+@keyframes analysisRowIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes reviewVisualIn{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes analysisDetailIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+@media (prefers-reduced-motion:reduce){
+  .analysisMoveRow,.reviewVisual,.analysisDetailContent{animation:none!important}
+}
+@media(max-width:800px){
+  .analysisOverview{grid-template-columns:1fr}
+  .analysisCounts{max-height:none}
+  .analysisTop{align-items:center}
+  .analysisTop h2{font-size:26px}
+  .analysisTop p{font-size:12px}
+}
+@media(max-width:520px){
+  .analysisShell{padding:12px}
+  .analysisTop{gap:10px}
+  .analysisKicker{font-size:8px}
+  .analysisTop h2{font-size:23px}
+  .closeButton{padding:8px 10px}
+  .analysisMoveRow{grid-template-columns:32px minmax(42px,1fr) auto;gap:7px;padding:10px}
+  .analysisQuality{font-size:9px;max-width:92px}
+  .analysisMoves{max-height:38vh}
+  .analysisDetail{padding:14px}
+  .reviewBoard{width:min(100%,340px)}
+  .reviewEval{left:8px;bottom:8px;max-width:calc(100% - 16px);padding:8px 10px}
+  .reviewEval strong{font-size:26px}
+  .detailGrid{gap:7px}
+  .detailGrid>div{padding:10px}
+  .reviewPager{justify-content:center}
+  .reviewPager button{flex:1}
+  .reviewPager span{width:100%;text-align:center;order:-1}
+}
