@@ -2,11 +2,12 @@ import { useEffect } from "react";
 import "../App.css";
 import Sidebar from "../components/sidebar/Sidebar";
 import Board from "../components/board/Board";
+import AchievementToast from "../components/AchievementToast";
 import useChessGame from "../hooks/useChessGame";
 
 export default function Chess() {
     const chess = useChessGame();
-    const { matchLocked, gameOver } = chess;
+    const { matchLocked, gameOver, achievementEvent, clearAchievementEvent } = chess;
 
     /*
      * 경기 중에는 실수로 새로고침/닫기를 누르는 것을 막는다.
@@ -74,6 +75,7 @@ export default function Chess() {
 
     return (
         <div className="app">
+            <AchievementToast achievement={achievementEvent} onClose={clearAchievementEvent} />
             <main className="layout">
                 <Board chess={chess} />
                 <Sidebar chess={chess} />
