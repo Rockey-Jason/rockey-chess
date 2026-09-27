@@ -898,6 +898,18 @@ const say = useCallback(
     next();
   }, []);
 
+  const clearAchievementEvent = useCallback(() => {
+    setAchievementEvent(null);
+    if (achievementQueueRef.current.length > 0) {
+      window.setTimeout(() => {
+        const next = achievementQueueRef.current.shift();
+        if (next) setAchievementEvent(next);
+      }, 250);
+    } else {
+      achievementShowingRef.current = false;
+    }
+  }, []);
+
   const claimAchievement = useCallback(async (id) => {
     const { data, error } = await supabase.rpc("claim_achievement", {
       p_achievement_id: id
@@ -1871,6 +1883,9 @@ const say = useCallback(
     analysisBusy,
     openAnalysis,
     analyzeGame,
+
+    achievementEvent,
+    clearAchievementEvent,
 
     rating,
     ratingChange,
