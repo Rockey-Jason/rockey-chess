@@ -184,6 +184,9 @@ export default function useChessGame() {
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [analysisBusy, setAnalysisBusy] = useState(false);
   const savedGameRef = useRef(false);
+  const [achievementEvent, setAchievementEvent] = useState(null);
+  const achievementQueueRef = useRef([]);
+  const achievementShowingRef = useRef(false);
 
   const game = gameRef.current;
 
@@ -875,6 +878,61 @@ const say = useCallback(
     [rating]
   );
 
+  const showAchievement = useCallback((data) => {
+    if (!data?.success || data?.already_claimed) return;
+    achievementQueueRef.current.push(data);
+    if (achievementShowingRef.current) return;
+    achievementShowingRef.current = true;
+    const next = () => {
+      const item = achievementQueueRef.current.shift();
+      if (!item) {
+        achievementShowingRef.current = false;
+        return;
+      }
+      setAchievementEvent(item);
+      window.setTimeout(() => {
+        setAchievementEvent(null);
+        window.setTimeout(next, 250);
+      }, 6500);
+    };
+    next();
+  }, []);
+
+  const claimAchievement = useCallback(async (id) => {
+    const { data, error } = await supabase.rpc("claim_achievement", {
+      p_achievement_id: id
+    });
+    if (error) {
+      console.warn("Achievement claim failed:", id, error);
+      return null;
+    }
+    if (data?.success) showAchievement(data);
+    return data;
+  }, [showAchievement]);
+
+  const checkChessAchievements = useCallback(async (finalResult) => {
+    await claimAchievement("first_chess");
+    if (finalResult !== "1-0") return;
+
+    const { user } = await getLoginIdAndProfile();
+    if (!user) return;
+
+    const { count, error } = await supabase
+      .from("chess_games")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("mode", "bot")
+      .eq("result", "1-0");
+
+    if (error) {
+      console.warn("Chess win count failed:", error);
+      return;
+    }
+
+    if (count === 10) await claimAchievement("chess_10_win");
+    if (count === 100) await claimAchievement("chess_100_win");
+  }, [claimAchievement]);
+
   const saveCompletedGame = useCallback(async (summary, finalResult) => {
     if (savedGameRef.current) return;
     savedGameRef.current = true;
@@ -968,7 +1026,7 @@ const say = useCallback(
 
     const summary = finalizeSummary(result);
     setGameSummary(summary);
-    saveCompletedGame(summary, result);
+    saveCompletedGame(summary, result).then(() => checkChessAchievements(result));
   }, [
     gameOver,
     result,
