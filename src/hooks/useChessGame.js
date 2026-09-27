@@ -880,30 +880,43 @@ const say = useCallback(
 
   const showAchievement = useCallback((data) => {
     if (!data?.success || data?.already_claimed) return;
+
     achievementQueueRef.current.push(data);
+
     if (achievementShowingRef.current) return;
+
     achievementShowingRef.current = true;
+
     const next = () => {
       const item = achievementQueueRef.current.shift();
+
       if (!item) {
         achievementShowingRef.current = false;
         return;
       }
+
+      // 팝업의 실제 제거는 AchievementToast가 담당한다.
+      // 여기서 setAchievementEvent(null)을 직접 호출하면
+      // 퇴장 애니메이션이 실행되기 전에 DOM이 사라진다.
       setAchievementEvent(item);
-      window.setTimeout(() => {
-        setAchievementEvent(null);
-        window.setTimeout(next, 250);
-      }, 6500);
     };
+
     next();
   }, []);
 
   const clearAchievementEvent = useCallback(() => {
+    // AchievementToast의 퇴장 애니메이션이 끝난 뒤 호출된다.
     setAchievementEvent(null);
+
     if (achievementQueueRef.current.length > 0) {
       window.setTimeout(() => {
         const next = achievementQueueRef.current.shift();
-        if (next) setAchievementEvent(next);
+
+        if (next) {
+          setAchievementEvent(next);
+        } else {
+          achievementShowingRef.current = false;
+        }
       }, 250);
     } else {
       achievementShowingRef.current = false;
