@@ -929,8 +929,8 @@ const say = useCallback(
       return;
     }
 
-    if (count === 10) await claimAchievement("chess_10_win");
-    if (count === 100) await claimAchievement("chess_100_win");
+    if (count >= 10) await claimAchievement("chess_10_win");
+    if (count >= 100) await claimAchievement("chess_100_win");
   }, [claimAchievement]);
 
   const saveCompletedGame = useCallback(async (summary, finalResult) => {
