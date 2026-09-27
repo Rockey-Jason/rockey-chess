@@ -38,18 +38,21 @@
 @media (max-height:520px) and (orientation:landscape){.achievement-toast-wrap{top:max(6px,env(safe-area-inset-top));max-height:calc(100dvh - 12px)}.achievement-toast{max-height:calc(100dvh - 12px);padding:9px 12px}.achievement-toast-icon{width:52px;height:52px}}
 
 /* ===== ACHIEVEMENT TOAST EXIT ANIMATION ===== */
-.achievement-toast.achievement-toast-closing{animation:achievementToastOut .68s cubic-bezier(.4,0,.2,1) both;pointer-events:none}
-.achievement-toast.achievement-toast-closing .achievement-toast-glow{animation:achievementExitAura .68s ease-out both}
-.achievement-toast.achievement-toast-closing .achievement-toast-particles::before{animation:achievementExitParticles .68s ease-out both}
-.achievement-toast.achievement-toast-closing .achievement-toast-icon{animation:achievementIconOut .68s cubic-bezier(.4,0,.2,1) both!important}
-.achievement-toast.achievement-toast-closing .achievement-toast-copy{animation:achievementCopyOut .42s ease-out both}
-.achievement-toast.achievement-toast-closing .achievement-toast-close{animation:achievementCloseOut .28s ease-out both}
-@keyframes achievementToastOut{0%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}45%{opacity:.78;transform:translateY(-4px) scale(.985);filter:blur(.15px)}100%{opacity:0;transform:translateY(-30px) scale(.94);filter:blur(5px)}}
-@keyframes achievementIconOut{0%{opacity:1;transform:scale(1) rotate(0)}45%{opacity:.75;transform:scale(.94) rotate(3deg)}100%{opacity:0;transform:scale(.68) rotate(10deg)}}
-@keyframes achievementCopyOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(12px)}}
-@keyframes achievementCloseOut{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.75) rotate(45deg)}}
-@keyframes achievementExitAura{from{opacity:.9;transform:scale(1)}to{opacity:0;transform:scale(1.5)}}
-@keyframes achievementExitParticles{from{opacity:.8;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-42px) scale(1.8)}}
+.achievement-toast.achievement-toast-closing{
+  animation:achievementToastOut .76s cubic-bezier(.22,1,.36,1) both;
+  pointer-events:none;
+}
+.achievement-toast.achievement-toast-closing .achievement-toast-glow{animation:achievementExitAura .76s cubic-bezier(.22,1,.36,1) both}
+.achievement-toast.achievement-toast-closing .achievement-toast-particles::before{animation:achievementExitParticles .76s cubic-bezier(.22,1,.36,1) both}
+.achievement-toast.achievement-toast-closing .achievement-toast-icon{animation:achievementIconOut .76s cubic-bezier(.22,1,.36,1) both!important}
+.achievement-toast.achievement-toast-closing .achievement-toast-copy{animation:achievementCopyOut .5s cubic-bezier(.22,1,.36,1) both}
+.achievement-toast.achievement-toast-closing .achievement-toast-close{animation:achievementCloseOut .32s ease-out both}
+@keyframes achievementToastOut{0%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}35%{opacity:1;transform:translateY(-3px) scale(.995);filter:blur(0)}68%{opacity:.72;transform:translateY(-10px) scale(.975);filter:blur(.4px)}100%{opacity:0;transform:translateY(-42px) scale(.94);filter:blur(3px)}}
+@keyframes achievementIconOut{0%{opacity:1;transform:scale(1) rotate(0)}38%{opacity:1;transform:scale(.98) rotate(-2deg)}100%{opacity:0;transform:scale(.72) rotate(8deg) translateY(-6px)}}
+@keyframes achievementCopyOut{0%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(18px)}}
+@keyframes achievementCloseOut{0%{opacity:1;transform:scale(1) rotate(0)}100%{opacity:0;transform:scale(.72) rotate(45deg)}}
+@keyframes achievementExitAura{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.6)}}
+@keyframes achievementExitParticles{0%{opacity:.8;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-50px) scale(1.9)}}
 @media(prefers-reduced-motion:reduce){
   .achievement-toast.achievement-toast-closing,.achievement-toast.achievement-toast-closing .achievement-toast-glow,.achievement-toast.achievement-toast-closing .achievement-toast-particles::before,.achievement-toast.achievement-toast-closing .achievement-toast-icon,.achievement-toast.achievement-toast-closing .achievement-toast-copy,.achievement-toast.achievement-toast-closing .achievement-toast-close{animation:none!important}
 }
