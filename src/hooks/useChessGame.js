@@ -1033,7 +1033,8 @@ const say = useCallback(
     currentBot,
     saveRating,
     finalizeSummary,
-    saveCompletedGame
+    saveCompletedGame,
+    checkChessAchievements
   ]);
 
   /*
