@@ -914,6 +914,24 @@ const say = useCallback(
     await claimAchievement("first_chess");
     if (finalResult !== "1-0") return;
 
+    // Supabase에 등록된 봇별 첫 승리 업적을 실제 승리 조건과 연결한다.
+    // claim_achievement()가 이미 획득한 업적을 원자적으로 차단하므로
+    // 같은 봇을 여러 번 이겨도 보상/팝업은 최초 1회만 발생한다.
+    const botWinAchievements = {
+      talc: "chess_win_talc",
+      sleep: "chess_win_sleeping",
+      fur: "chess_win_fur",
+      rockey: "chess_win_rockey",
+      army: "chess_win_army",
+      doronum: "chess_win_doronum",
+      brilliant: "chess_win_brilliant"
+    };
+
+    const botAchievementId = botWinAchievements[currentBot];
+    if (botAchievementId) {
+      await claimAchievement(botAchievementId);
+    }
+
     const { user } = await getLoginIdAndProfile();
     if (!user) return;
 
