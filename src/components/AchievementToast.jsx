@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./AchievementToast.css";
 
+const EXIT_DURATION = 760;
+
 export default function AchievementToast({ achievement, onClose }) {
   const [isClosing, setIsClosing] = useState(false);
   const isClosingRef = useRef(false);
@@ -12,7 +14,7 @@ export default function AchievementToast({ achievement, onClose }) {
     setIsClosing(true);
     window.clearTimeout(closeTimerRef.current);
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    closeTimerRef.current = window.setTimeout(() => onClose?.(), reducedMotion ? 0 : 520);
+    closeTimerRef.current = window.setTimeout(() => onClose?.(), reducedMotion ? 0 : EXIT_DURATION);
   }, [achievement, onClose]);
 
   useEffect(() => {
@@ -28,12 +30,11 @@ export default function AchievementToast({ achievement, onClose }) {
   }, [achievement, close]);
 
   if (!achievement) return null;
-
   const rarityClass = String(achievement.rarity || "Common").toLowerCase();
 
   return (
     <div className="achievement-toast-wrap" role="status" aria-live="polite">
-      <div className={`achievement-toast achievement-rarity-${rarityClass}${isClosing ? " achievement-toast-closing" : ""}`}>
+      <div className={"achievement-toast achievement-rarity-" + rarityClass + (isClosing ? " achievement-toast-closing" : "")}>
         <div className="achievement-toast-glow" />
         <div className="achievement-toast-particles" aria-hidden="true" />
         <div className="achievement-toast-icon">
@@ -54,7 +55,7 @@ export default function AchievementToast({ achievement, onClose }) {
             {achievement.title && <span>🏷️ {achievement.title}</span>}
           </div>
         </div>
-        <button className="achievement-toast-close" onClick={close} aria-label="업적 알림 닫기">×</button>
+        <button className="achievement-toast-close" onClick={close} aria-label="업적 알림 닫기" disabled={isClosing}>×</button>
       </div>
     </div>
   );
