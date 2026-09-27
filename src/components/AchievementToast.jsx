@@ -3,17 +3,20 @@ import "./AchievementToast.css";
 
 export default function AchievementToast({ achievement, onClose }) {
   const [isClosing, setIsClosing] = useState(false);
+  const isClosingRef = useRef(false);
   const closeTimerRef = useRef(null);
 
   const close = useCallback(() => {
-    if (!achievement || isClosing) return;
+    if (!achievement || isClosingRef.current) return;
+    isClosingRef.current = true;
     setIsClosing(true);
     window.clearTimeout(closeTimerRef.current);
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     closeTimerRef.current = window.setTimeout(() => onClose?.(), reducedMotion ? 0 : 520);
-  }, [achievement, isClosing, onClose]);
+  }, [achievement, onClose]);
 
   useEffect(() => {
+    isClosingRef.current = false;
     setIsClosing(false);
     window.clearTimeout(closeTimerRef.current);
     if (!achievement) return undefined;
