@@ -16,6 +16,7 @@ export default function AchievementToast({ achievement, onClose }) {
     <div className="achievement-toast-wrap" role="status" aria-live="polite">
       <div className={`achievement-toast achievement-rarity-${rarityClass}`}>
         <div className="achievement-toast-glow" />
+        <div className="achievement-toast-particles" aria-hidden="true" />
         <div className="achievement-toast-icon">
           <span>{achievement.icon || "🏆"}</span>
         </div>
