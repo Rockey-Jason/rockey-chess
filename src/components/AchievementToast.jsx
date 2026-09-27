@@ -1,12 +1,28 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./AchievementToast.css";
 
 export default function AchievementToast({ achievement, onClose }) {
+  const [isClosing, setIsClosing] = useState(false);
+  const closeTimerRef = useRef(null);
+
+  const close = useCallback(() => {
+    if (!achievement || isClosing) return;
+    setIsClosing(true);
+    window.clearTimeout(closeTimerRef.current);
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    closeTimerRef.current = window.setTimeout(() => onClose?.(), reducedMotion ? 0 : 520);
+  }, [achievement, isClosing, onClose]);
+
   useEffect(() => {
+    setIsClosing(false);
+    window.clearTimeout(closeTimerRef.current);
     if (!achievement) return undefined;
-    const timer = window.setTimeout(() => onClose?.(), 6500);
-    return () => window.clearTimeout(timer);
-  }, [achievement, onClose]);
+    const timer = window.setTimeout(close, 6500);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(closeTimerRef.current);
+    };
+  }, [achievement, close]);
 
   if (!achievement) return null;
 
@@ -14,7 +30,7 @@ export default function AchievementToast({ achievement, onClose }) {
 
   return (
     <div className="achievement-toast-wrap" role="status" aria-live="polite">
-      <div className={`achievement-toast achievement-rarity-${rarityClass}`}>
+      <div className={`achievement-toast achievement-rarity-${rarityClass}${isClosing ? " achievement-toast-closing" : ""}`}>
         <div className="achievement-toast-glow" />
         <div className="achievement-toast-particles" aria-hidden="true" />
         <div className="achievement-toast-icon">
@@ -35,7 +51,7 @@ export default function AchievementToast({ achievement, onClose }) {
             {achievement.title && <span>🏷️ {achievement.title}</span>}
           </div>
         </div>
-        <button className="achievement-toast-close" onClick={onClose} aria-label="업적 알림 닫기">×</button>
+        <button className="achievement-toast-close" onClick={close} aria-label="업적 알림 닫기">×</button>
       </div>
     </div>
   );
