@@ -1,6 +1,13 @@
+import { useEffect } from "react";
 import "./AchievementToast.css";
 
 export default function AchievementToast({ achievement, onClose }) {
+  useEffect(() => {
+    if (!achievement) return undefined;
+    const timer = window.setTimeout(() => onClose?.(), 6500);
+    return () => window.clearTimeout(timer);
+  }, [achievement, onClose]);
+
   if (!achievement) return null;
 
   const rarityClass = String(achievement.rarity || "Common").toLowerCase();
