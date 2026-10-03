@@ -34,6 +34,7 @@ const QUALITY_LABELS = {
 
 export default function Board({ chess = {} }) {
     const boardRef = useRef(null);
+    const gameOverRef = useRef(null);
     const [hiddenSquares, setHiddenSquares] = useState([]);
     const [animations, setAnimations] = useState([]);
     const pointerFromRef = useRef(null);
@@ -86,14 +87,23 @@ export default function Board({ chess = {} }) {
     useEffect(() => {
         if (!gameOver) return undefined;
 
-        const previousOverflow = document.body.style.overflow;
-        const previousOverscroll = document.body.style.overscrollBehavior;
-        document.body.style.overflow = "hidden";
-        document.body.style.overscrollBehavior = "none";
+        const previousOverscroll = document.documentElement.style.scrollBehavior;
+        document.documentElement.style.scrollBehavior = "auto";
+
+        const timer = window.setTimeout(() => {
+            const target = gameOverRef.current || boardRef.current;
+            if (!target) return;
+
+            target.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+                inline: "nearest"
+            });
+        }, 80);
 
         return () => {
-            document.body.style.overflow = previousOverflow;
-            document.body.style.overscrollBehavior = previousOverscroll;
+            window.clearTimeout(timer);
+            document.documentElement.style.scrollBehavior = previousOverscroll;
         };
     }, [gameOver]);
 
@@ -591,7 +601,7 @@ export default function Board({ chess = {} }) {
 
             {gameOver && (
                 <div className="game-over">
-                    <div className="popup">
+                    <div className="popup" ref={gameOverRef}>
                         <div className="resultEyebrow">
                             ROCKEY CHESS
                         </div>
