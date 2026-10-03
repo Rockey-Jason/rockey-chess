@@ -52,7 +52,9 @@
 .promotionMenu img{width:64px;height:64px;display:block;object-fit:contain;background:#fff;cursor:pointer;transition:background .18s ease,transform .18s ease}
 .promotionMenu img:hover{background:#eee;transform:scale(1.04)}
 .game-over-backdrop{position:fixed;inset:0;width:100vw;height:100dvh;min-height:100vh;background:rgba(0,0,0,.72);z-index:99990;pointer-events:auto}
+.game-over-backdrop.transition-lock{cursor:wait}
 .game-over{position:absolute;inset:0;width:100%;height:100%;min-height:100%;display:flex;align-items:center;justify-content:center;padding:20px;overscroll-behavior:contain;touch-action:none;box-sizing:border-box;z-index:99999;pointer-events:auto}
+.game-over.transition-lock .popup{pointer-events:none;cursor:wait;}
 .popup{
   position:relative;
   width:min(430px,calc(100% - 32px));
@@ -74,6 +76,7 @@
 .resultEyebrow{font-size:11px;font-weight:900;letter-spacing:.18em;color:#687284}.popup h1{margin:8px 0 8px;font-size:34px;letter-spacing:-.02em}.popup h2{margin:0 0 22px;font-size:22px}
 .finalAccuracy{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;margin-bottom:16px;border-radius:12px;background:#edf0f5}.finalAccuracy strong{font-size:24px}
 .popup button{display:block;width:100%;margin-top:10px;padding:13px 20px;border:0;border-radius:11px;font-size:16px;font-weight:850;cursor:pointer;transition:transform .18s cubic-bezier(.22,1,.36,1),filter .18s ease,background .18s ease}.popup button:disabled{cursor:wait;opacity:.58;filter:saturate(.35);transform:none}
+.game-over.transition-lock ~ *{pointer-events:none}
 .popup button:hover{transform:translateY(-2px) scale(1.02);filter:brightness(1.06)}.primaryAction{background:#242c39;color:#fff}.secondaryAction{background:#e5e8ed;color:#15191f}
 @keyframes gameOverIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
 @media(max-width:1100px){.playerStack,.evaluationBarRow,.capturedRow,.board{width:min(640px,100%)}}
