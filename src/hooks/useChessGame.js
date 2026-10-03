@@ -867,6 +867,10 @@ const say = useCallback(
       );
 
       setRating(next);
+      setPlayerProfile(prev => ({
+        ...prev,
+        rating: next
+      }));
       setRatingChange(change);
       setShowRatingChange(true);
 
