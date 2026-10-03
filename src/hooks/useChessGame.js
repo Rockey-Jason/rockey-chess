@@ -19,13 +19,13 @@ const ratingReward = {
 };
 
 const botRating = {
-  talc: 400,
-  sleep: 600,
-  fur: 900,
-  rockey: 1200,
-  army: 1600,
-  doronum: 2000,
-  brilliant: 2800
+  talc: 1,
+  sleep: 100,
+  fur: 500,
+  rockey: 1000,
+  army: 3000,
+  doronum: 5000,
+  brilliant: 10000
 };
 
 const STAT_KEYS = [
