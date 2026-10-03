@@ -21,6 +21,8 @@ const botRating = {
 const getRatingGain = (opponentRating, playerRating) => {
   const diff = Number(opponentRating) - Number(playerRating);
 
+  // 상대가 훨씬 낮을수록 승리 보상은 작아지고,
+  // 상대가 나보다 높을수록 승리 보상은 더 커진다.
   if (diff <= -10000) return 0;
   if (diff <= -9000) return 1;
   if (diff <= -8000) return 2;
@@ -35,7 +37,61 @@ const getRatingGain = (opponentRating, playerRating) => {
   if (diff <= -399) return 30;
   if (diff <= -199) return 40;
   if (diff <= -1) return 45;
-  return 50;
+  if (diff === 0) return 50;
+
+  // 양수 구간: 상대가 더 높은 레이팅이면 승리 보상이 증가한다.
+  if (diff <= 100) return 55;
+  if (diff <= 300) return 60;
+  if (diff <= 500) return 65;
+  if (diff <= 999) return 70;
+  if (diff <= 1999) return 80;
+  if (diff <= 2999) return 90;
+  if (diff <= 3999) return 100;
+  if (diff <= 4999) return 110;
+  if (diff <= 5999) return 120;
+  if (diff <= 6999) return 130;
+  if (diff <= 7999) return 140;
+  if (diff <= 8999) return 150;
+  if (diff <= 9999) return 160;
+  return 170;
+};
+
+const getRatingLoss = (opponentRating, playerRating) => {
+  const diff = Number(opponentRating) - Number(playerRating);
+
+  // 패배 시에는 낮은 레이팅 상대에게 질수록 더 크게 깎이고,
+  // 높은 레이팅 상대에게 질수록 적게 깎인다.
+  if (diff >= 10000) return 0;
+  if (diff >= 9000) return 1;
+  if (diff >= 8000) return 2;
+  if (diff >= 7000) return 3;
+  if (diff >= 6000) return 4;
+  if (diff >= 5000) return 5;
+  if (diff >= 4000) return 6;
+  if (diff >= 3000) return 7;
+  if (diff >= 2000) return 8;
+  if (diff >= 1000) return 10;
+  if (diff >= 599) return 20;
+  if (diff >= 399) return 30;
+  if (diff >= 199) return 40;
+  if (diff >= 1) return 45;
+
+  // 같은 레이팅이거나 낮은 상대에게 패배하면 더 크게 감소한다.
+  if (diff === 0) return 50;
+  if (diff >= -100) return 55;
+  if (diff >= -300) return 60;
+  if (diff >= -500) return 65;
+  if (diff >= -999) return 70;
+  if (diff >= -1999) return 80;
+  if (diff >= -2999) return 90;
+  if (diff >= -3999) return 100;
+  if (diff >= -4999) return 110;
+  if (diff >= -5999) return 120;
+  if (diff >= -6999) return 130;
+  if (diff >= -7999) return 140;
+  if (diff >= -8999) return 150;
+  if (diff >= -9999) return 160;
+  return 170;
 };
 
 const STAT_KEYS = [
@@ -1068,11 +1124,13 @@ const say = useCallback(
     const playerRating = Number(rating);
     const ratingGain = getRatingGain(opponentRating, playerRating);
 
+    const ratingLoss = getRatingLoss(opponentRating, playerRating);
+
     const change = won
       ? ratingGain
       : draw
-        ? Math.floor(ratingGain / 4)
-        : -Math.max(5, Math.floor(ratingGain / 2));
+        ? Math.floor((ratingGain + ratingLoss) / 8)
+        : -ratingLoss;
 
     saveRating(change);
 
