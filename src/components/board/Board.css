@@ -51,18 +51,16 @@
 .promotionMenu{position:absolute;z-index:2000;display:flex;flex-direction:column;background:#222;border:2px solid #666;border-radius:10px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .promotionMenu img{width:64px;height:64px;display:block;object-fit:contain;background:#fff;cursor:pointer;transition:background .18s ease,transform .18s ease}
 .promotionMenu img:hover{background:#eee;transform:scale(1.04)}
-.game-over{position:fixed;inset:0;width:100vw;height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px;overscroll-behavior:contain;touch-action:none;box-sizing:border-box;background:rgba(0,0,0,.68);z-index:99999}
+.game-over{position:absolute;inset:0;width:100%;height:100%;min-height:100%;display:flex;align-items:center;justify-content:center;padding:20px;overscroll-behavior:contain;touch-action:none;box-sizing:border-box;background:rgba(0,0,0,.68);z-index:99999}
 .popup{
   position:absolute;
   left:50%;
   top:50%;
-  width:min(430px,calc(100vw - 32px));
-  max-width:calc(100vw - 32px);
+  width:min(430px,calc(100% - 32px));
+  max-width:calc(100% - 32px);
   min-width:280px;
   height:auto;
-  max-height:calc(100vh - 40px);
-  max-height:calc(100svh - 40px);
-  max-height:calc(100dvh - 40px);
+  max-height:calc(100% - 40px);
   padding:clamp(22px,4vw,38px) clamp(18px,4vw,32px);
   transform:translate(-50%,-50%);
   overflow-x:hidden;
@@ -84,12 +82,10 @@
 @media(max-width:700px){
   .game-over{align-items:center;justify-content:center;padding:12px;overflow:hidden;width:100vw;height:100dvh}
   .popup{
-    width:min(430px,calc(100vw - 24px));
-    max-width:calc(100vw - 24px);
+    width:min(430px,calc(100% - 24px));
+    max-width:calc(100% - 24px);
     min-width:0;
-    max-height:calc(100vh - 24px);
-    max-height:calc(100svh - 24px);
-    max-height:calc(100dvh - 24px);
+    max-height:calc(100% - 24px);
     padding:clamp(20px,5vw,26px) clamp(16px,5vw,22px);
     border-radius:clamp(16px,4vw,18px)
   }
@@ -101,7 +97,7 @@
 }
 @media(max-height:520px){
   .popup{
-    max-height:calc(100dvh - 16px);
+    max-height:calc(100% - 16px);
     padding-top:16px;
     padding-bottom:16px
   }
