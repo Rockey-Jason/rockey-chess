@@ -445,7 +445,7 @@ export default function Board({ chess = {} }) {
                     {profile.image ? <img className="playerAvatar" src={profile.image} alt="" /> : <div className="playerAvatar fallbackAvatar">♟</div>}
                     <div className="playerIdentity">
                         <div className="playerName">{profile.name || currentBot}</div>
-                        <div className="playerMeta">BOT · Lv.{profile.level ?? 1} · {botData[currentBot]?.rating ?? 0}</div>
+                        <div className="playerMeta">BOT · Lv.{profile.level ?? 1} · {botData[currentBot]?.rating ?? 0} 레이팅</div>
                     </div>
                     <div className="playerClock">{isThinking ? "● THINKING" : "READY"}</div>
                 </div>
