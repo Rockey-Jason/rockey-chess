@@ -56,7 +56,13 @@ export default function RatingChange({ rating = 0, change = 0, visible = false }
     };
   }, [target, delta, visible, start]);
 
-  if (phase === "idle" && !visible) return null;
+  if (!visible && delta === 0) {
+    return <span className="ratingLive ratingStatic"><span className="ratingNumber">{target.toLocaleString()}</span></span>;
+  }
+
+  if (phase === "idle" && !visible) {
+    return <span className="ratingLive ratingStatic"><span className="ratingNumber">{target.toLocaleString()}</span></span>;
+  }
 
   const positive = delta > 0;
   const negative = delta < 0;
