@@ -49,7 +49,7 @@
 .promotionMenu img{width:64px;height:64px;display:block;object-fit:contain;background:#fff;cursor:pointer;transition:background .18s ease,transform .18s ease}
 .promotionMenu img:hover{background:#eee;transform:scale(1.04)}
 .game-over{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:rgba(0,0,0,.68);z-index:9999}
-.popup{width:min(430px,100%);padding:38px 32px;background:linear-gradient(145deg,#ffffff,#f4f6fa);color:#111;border-radius:22px;text-align:center;box-shadow:0 25px 80px rgba(0,0,0,.5);animation:gameOverIn .35s cubic-bezier(.22,1,.36,1)}
+.popup{width:min(430px,100%);padding:38px 32px;transform:translateY(-7vh);background:linear-gradient(145deg,#ffffff,#f4f6fa);color:#111;border-radius:22px;text-align:center;box-shadow:0 25px 80px rgba(0,0,0,.5);animation:gameOverIn .35s cubic-bezier(.22,1,.36,1)}
 .resultEyebrow{font-size:11px;font-weight:900;letter-spacing:.18em;color:#687284}.popup h1{margin:8px 0 8px;font-size:34px;letter-spacing:-.02em}.popup h2{margin:0 0 22px;font-size:22px}
 .finalAccuracy{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;margin-bottom:16px;border-radius:12px;background:#edf0f5}.finalAccuracy strong{font-size:24px}
 .popup button{display:block;width:100%;margin-top:10px;padding:13px 20px;border:0;border-radius:11px;font-size:16px;font-weight:850;cursor:pointer;transition:transform .18s cubic-bezier(.22,1,.36,1),filter .18s ease,background .18s ease}
