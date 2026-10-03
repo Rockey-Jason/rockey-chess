@@ -13,6 +13,8 @@ export default function RatingChange({ rating = 0, change = 0, visible = false }
   useEffect(() => {
     if (!visible || delta === 0) {
       setValue(target);
+      setLeaving(false);
+      setActive(false);
       return;
     }
     const from = previousTarget.current === target ? start : previousTarget.current;
