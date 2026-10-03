@@ -582,22 +582,6 @@ export default function Board({ chess = {} }) {
                         </div>
                     )}
                 </div>
-            </div>
-
-            {promotionData && (
-                <div className="promotionMenu">
-                    {["Q", "R", "B", "N"].map((piece) => (
-                        <img
-                            key={piece}
-                            src={`${import.meta.env.BASE_URL}pieces/w${piece}.png`}
-                            onClick={() =>
-                                choosePromotion(piece.toLowerCase())
-                            }
-                            alt={piece}
-                        />
-                    ))}
-                </div>
-            )}
 
             {gameOver && (
                 <div className="game-over">
@@ -635,6 +619,24 @@ export default function Board({ chess = {} }) {
                     </div>
                 </div>
             )}
+            </div>
+
+            {promotionData && (
+                <div className="promotionMenu">
+                    {["Q", "R", "B", "N"].map((piece) => (
+                        <img
+                            key={piece}
+                            src={`${import.meta.env.BASE_URL}pieces/w${piece}.png`}
+                            onClick={() =>
+                                choosePromotion(piece.toLowerCase())
+                            }
+                            alt={piece}
+                        />
+                    ))}
+                </div>
+            )}
+
+
         </div>
     );
 }
