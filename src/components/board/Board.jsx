@@ -7,6 +7,7 @@ import Square from "./Square";
 import Piece from "../Piece";
 import SpeechBubble from "../SpeechBubble";
 import botData from "../../data/botData";
+import RatingChange from "../RatingChange";
 import { supabase } from "../../supabase";
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -57,6 +58,8 @@ export default function Board({ chess = {} }) {
         gameOver = false,
         currentBot = "talc",
         rating = 0,
+        ratingChange = 0,
+        showRatingChange = false,
         dragMove = () => {},
         moveAnimations = [],
         promotionData,
@@ -417,7 +420,7 @@ export default function Board({ chess = {} }) {
                     <div className="playerIdentity">
                         <div className="playerName">{playerProfile.name || "나"}</div>
                         {playerTitle !== "default" && <div className="equippedTitle">{playerTitle === "title_master" ? "Rockey Master" : "Tactician"}</div>}
-                        <div className="playerMeta">PLAYER · {Number(playerProfile.rating ?? rating ?? 0).toLocaleString()} 레이팅</div>
+                        <div className="playerMeta playerRatingMeta">PLAYER · <RatingChange rating={rating} change={ratingChange} visible={showRatingChange} /> 레이팅</div>
                     </div>
                     <div className="playerClock">{gameOver ? "FINISHED" : "YOUR TURN"}</div>
                 </div>
