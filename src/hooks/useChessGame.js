@@ -8,16 +8,6 @@ import { dialogs } from "../data/chessDialog";
 
 const START_FEN = new Chess().fen();
 
-const ratingReward = {
-  talc: 60,
-  sleep: 100,
-  fur: 375,
-  rockey: 500,
-  army: 1000,
-  doronum: 2500,
-  brilliant: 3000
-};
-
 const botRating = {
   talc: 1,
   sleep: 100,
@@ -26,6 +16,26 @@ const botRating = {
   army: 3000,
   doronum: 5000,
   brilliant: 10000
+};
+
+const getRatingGain = (opponentRating, playerRating) => {
+  const diff = Number(opponentRating) - Number(playerRating);
+
+  if (diff <= -10000) return 0;
+  if (diff <= -9000) return 1;
+  if (diff <= -8000) return 2;
+  if (diff <= -7000) return 3;
+  if (diff <= -6000) return 4;
+  if (diff <= -5000) return 5;
+  if (diff <= -4000) return 6;
+  if (diff <= -3000) return 7;
+  if (diff <= -2000) return 8;
+  if (diff <= -1000) return 10;
+  if (diff <= -599) return 20;
+  if (diff <= -399) return 30;
+  if (diff <= -199) return 40;
+  if (diff <= -1) return 45;
+  return 50;
 };
 
 const STAT_KEYS = [
@@ -1054,20 +1064,15 @@ const say = useCallback(
     const draw =
       result === "1/2-1/2";
 
+    const opponentRating = botRating[currentBot] || 0;
+    const playerRating = Number(rating);
+    const ratingGain = getRatingGain(opponentRating, playerRating);
+
     const change = won
-      ? ratingReward[currentBot] || 0
+      ? ratingGain
       : draw
-        ? Math.floor(
-            (ratingReward[currentBot] || 0) /
-              4
-          )
-        : -Math.max(
-            5,
-            Math.floor(
-              (ratingReward[currentBot] || 0) /
-                10
-            )
-          );
+        ? Math.floor(ratingGain / 4)
+        : -Math.max(5, Math.floor(ratingGain / 2));
 
     saveRating(change);
 
@@ -1078,6 +1083,7 @@ const say = useCallback(
     gameOver,
     result,
     currentBot,
+    rating,
     saveRating,
     finalizeSummary,
     saveCompletedGame,
