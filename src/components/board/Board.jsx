@@ -90,6 +90,16 @@ export default function Board({ chess = {} }) {
         const previousOverscroll = document.documentElement.style.scrollBehavior;
         document.documentElement.style.scrollBehavior = "auto";
 
+        const buttons = Array.from(document.querySelectorAll("button"));
+        const previousButtonStates = buttons.map((button) => ({
+            button,
+            disabled: button.disabled
+        }));
+        buttons.forEach((button) => {
+            button.disabled = true;
+            button.setAttribute("aria-disabled", "true");
+        });
+
         const timer = window.setTimeout(() => {
             const target = gameOverRef.current || boardRef.current;
             if (!target) return;
@@ -101,8 +111,30 @@ export default function Board({ chess = {} }) {
             });
         }, 80);
 
+        const restoreTimer = window.setTimeout(() => {
+            previousButtonStates.forEach(({ button, disabled }) => {
+                if (!button.isConnected) return;
+                button.disabled = disabled;
+                if (disabled) {
+                    button.setAttribute("aria-disabled", "true");
+                } else {
+                    button.removeAttribute("aria-disabled");
+                }
+            });
+        }, 900);
+
         return () => {
             window.clearTimeout(timer);
+            window.clearTimeout(restoreTimer);
+            previousButtonStates.forEach(({ button, disabled }) => {
+                if (!button.isConnected) return;
+                button.disabled = disabled;
+                if (disabled) {
+                    button.setAttribute("aria-disabled", "true");
+                } else {
+                    button.removeAttribute("aria-disabled");
+                }
+            });
             document.documentElement.style.scrollBehavior = previousOverscroll;
         };
     }, [gameOver]);
@@ -584,8 +616,10 @@ export default function Board({ chess = {} }) {
                 </div>
 
             {gameOver && (
-                <div className="game-over">
-                    <div className="popup" ref={gameOverRef}>
+                <>
+                    <div className="game-over-backdrop" aria-hidden="true" />
+                    <div className="game-over">
+                        <div className="popup" ref={gameOverRef}>
                         <div className="resultEyebrow">
                             ROCKEY CHESS
                         </div>
@@ -616,8 +650,9 @@ export default function Board({ chess = {} }) {
                         >
                             다시 플레이
                         </button>
+                        </div>
                     </div>
-                </div>
+                </>
             )}
             </div>
 
