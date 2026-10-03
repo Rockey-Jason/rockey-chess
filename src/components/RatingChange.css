@@ -37,3 +37,8 @@
 @keyframes particle1{to{transform:translate(-24px,-16px);opacity:0}}@keyframes particle2{to{transform:translate(25px,-13px);opacity:0}}@keyframes particle3{to{transform:translate(-29px,10px);opacity:0}}@keyframes particle4{to{transform:translate(30px,12px);opacity:0}}@keyframes particle5{to{transform:translate(-12px,27px);opacity:0}}@keyframes particle6{to{transform:translate(13px,-28px);opacity:0}}
 @media(max-width:600px){.ratingDelta{font-size:8px;padding:3px 6px;left:calc(100% + 7px)}.ratingDeltaArrow{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.ratingNumber,.ratingDelta,.ratingAura,.ratingParticles,.ratingParticles i{animation:none!important}.ratingLive{transition:none}}
+
+/* Reserve room for the animated rating delta so it never overlaps the rating label. */
+.ratingUp,.ratingDown{margin-right:48px}
+.ratingDisplay{overflow:visible;min-width:0}
+@media(max-width:600px){.ratingUp,.ratingDown{margin-right:44px}.ratingDelta{max-width:44px;overflow:hidden;text-overflow:ellipsis}}
