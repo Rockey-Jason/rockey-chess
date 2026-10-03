@@ -36,6 +36,7 @@ export default function Board({ chess = {} }) {
     const boardRef = useRef(null);
     const gameOverRef = useRef(null);
     const [hiddenSquares, setHiddenSquares] = useState([]);
+    const [gameOverTransitioning, setGameOverTransitioning] = useState(false);
     const [animations, setAnimations] = useState([]);
     const pointerFromRef = useRef(null);
     const suppressClickRef = useRef(false);
@@ -85,22 +86,16 @@ export default function Board({ chess = {} }) {
 
     const profile = botData[currentBot] || botData.talc || {};
     useEffect(() => {
-        if (!gameOver) return undefined;
+        if (!gameOver) {
+            setGameOverTransitioning(false);
+            return undefined;
+        }
 
         const previousOverscroll = document.documentElement.style.scrollBehavior;
         document.documentElement.style.scrollBehavior = "auto";
+        setGameOverTransitioning(true);
 
-        const buttons = Array.from(document.querySelectorAll("button"));
-        const previousButtonStates = buttons.map((button) => ({
-            button,
-            disabled: button.disabled
-        }));
-        buttons.forEach((button) => {
-            button.disabled = true;
-            button.setAttribute("aria-disabled", "true");
-        });
-
-        const timer = window.setTimeout(() => {
+        const scrollTimer = window.setTimeout(() => {
             const target = gameOverRef.current || boardRef.current;
             if (!target) return;
 
@@ -111,30 +106,14 @@ export default function Board({ chess = {} }) {
             });
         }, 80);
 
-        const restoreTimer = window.setTimeout(() => {
-            previousButtonStates.forEach(({ button, disabled }) => {
-                if (!button.isConnected) return;
-                button.disabled = disabled;
-                if (disabled) {
-                    button.setAttribute("aria-disabled", "true");
-                } else {
-                    button.removeAttribute("aria-disabled");
-                }
-            });
+        const unlockTimer = window.setTimeout(() => {
+            setGameOverTransitioning(false);
         }, 900);
 
         return () => {
-            window.clearTimeout(timer);
-            window.clearTimeout(restoreTimer);
-            previousButtonStates.forEach(({ button, disabled }) => {
-                if (!button.isConnected) return;
-                button.disabled = disabled;
-                if (disabled) {
-                    button.setAttribute("aria-disabled", "true");
-                } else {
-                    button.removeAttribute("aria-disabled");
-                }
-            });
+            window.clearTimeout(scrollTimer);
+            window.clearTimeout(unlockTimer);
+            setGameOverTransitioning(false);
             document.documentElement.style.scrollBehavior = previousOverscroll;
         };
     }, [gameOver]);
@@ -617,8 +596,8 @@ export default function Board({ chess = {} }) {
 
             {gameOver && (
                 <>
-                    <div className="game-over-backdrop" aria-hidden="true" />
-                    <div className="game-over">
+                    <div className={`game-over-backdrop${gameOverTransitioning ? " transition-lock" : ""}`} aria-hidden="true" />
+                    <div className={`game-over${gameOverTransitioning ? " transition-lock" : ""}`}>
                         <div className="popup" ref={gameOverRef}>
                         <div className="resultEyebrow">
                             ROCKEY CHESS
