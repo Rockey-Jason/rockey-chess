@@ -1130,7 +1130,7 @@ const say = useCallback(
       ? ratingGain
       : draw
         ? -Math.max(1, Math.floor(ratingLoss / 4))
-        : -Math.max(10, ratingLoss * 2);
+        : -Math.max(10, Math.round(ratingLoss * 1.3));
 
     saveRating(change);
 
