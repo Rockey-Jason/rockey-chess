@@ -1129,8 +1129,8 @@ const say = useCallback(
     const change = won
       ? ratingGain
       : draw
-        ? Math.floor((ratingGain + ratingLoss) / 8)
-        : -ratingLoss;
+        ? -Math.max(1, Math.floor(ratingLoss / 4))
+        : -Math.max(10, ratingLoss * 2);
 
     saveRating(change);
 
