@@ -83,6 +83,20 @@ export default function Board({ chess = {} }) {
     } = chess;
 
     const profile = botData[currentBot] || botData.talc || {};
+    useEffect(() => {
+        if (!gameOver) return undefined;
+
+        const previousOverflow = document.body.style.overflow;
+        const previousOverscroll = document.body.style.overscrollBehavior;
+        document.body.style.overflow = "hidden";
+        document.body.style.overscrollBehavior = "none";
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            document.body.style.overscrollBehavior = previousOverscroll;
+        };
+    }, [gameOver]);
+
 
     useEffect(() => {
         let mounted = true;
@@ -420,7 +434,13 @@ export default function Board({ chess = {} }) {
                     <div className="playerIdentity">
                         <div className="playerName">{playerProfile.name || "나"}</div>
                         {playerTitle !== "default" && <div className="equippedTitle">{playerTitle === "title_master" ? "Rockey Master" : "Tactician"}</div>}
-                        <div className="playerMeta playerRatingMeta">PLAYER · <RatingChange rating={rating} change={ratingChange} visible={showRatingChange} /> 레이팅</div>
+                        <div className="playerMeta playerRatingMeta">
+                            <span>PLAYER ·</span>
+                            <span className="ratingDisplay">
+                                <RatingChange rating={rating} change={ratingChange} visible={showRatingChange} />
+                            </span>
+                            <span className="ratingSuffix">레이팅</span>
+                        </div>
                     </div>
                     <div className="playerClock">{gameOver ? "FINISHED" : "YOUR TURN"}</div>
                 </div>
