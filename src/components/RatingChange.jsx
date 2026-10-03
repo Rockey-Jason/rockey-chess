@@ -18,7 +18,7 @@ export default function RatingChange({ rating = 0, change = 0, visible = false }
       return;
     }
     const from = previousTarget.current === target ? start : previousTarget.current;
-    const duration = Math.min(1500, Math.max(700, 650 + Math.abs(delta) * 0.08));
+    const duration = Math.min(2800, Math.max(1300, 1200 + Math.abs(delta) * 0.12));
     const started = performance.now();
     setActive(true);
     setLeaving(false);
@@ -30,8 +30,8 @@ export default function RatingChange({ rating = 0, change = 0, visible = false }
       if (progress < 1) frame = requestAnimationFrame(animate);
       else {
         setValue(target);
-        window.setTimeout(() => setLeaving(true), 1450);
-        window.setTimeout(() => setActive(false), 1850);
+        window.setTimeout(() => setLeaving(true), 3600);
+        window.setTimeout(() => setActive(false), 4100);
       }
     };
     frame = requestAnimationFrame(animate);
