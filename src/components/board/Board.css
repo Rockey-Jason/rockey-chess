@@ -14,7 +14,10 @@
 .playerAvatar{width:46px;height:46px;border-radius:12px;object-fit:cover;background:#111a2b;border:1px solid rgba(255,255,255,.12);flex:none}
 .fallbackAvatar{display:grid;place-items:center;font-size:24px;color:#dce7f5}
 .playerIdentity{min-width:0;flex:1}.playerName{font-size:16px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.playerMeta{font-size:11px;color:#8fa1bb;margin-top:2px;font-weight:700}.playerClock{font-size:10px;font-weight:900;color:#87a0c3;letter-spacing:.08em;white-space:nowrap}
+.playerMeta{font-size:11px;color:#8fa1bb;margin-top:2px;font-weight:700}
+.playerRatingMeta{display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap}
+.ratingDisplay{display:inline-flex;align-items:center;min-width:4.5ch}
+.ratingSuffix{flex:none}.playerClock{font-size:10px;font-weight:900;color:#87a0c3;letter-spacing:.08em;white-space:nowrap}
 .evaluationBarRow{width:min(680px,100%);min-height:34px;display:flex;align-items:center;gap:9px;margin-bottom:7px;box-sizing:border-box}
 .evaluationLabel{color:#9ca9bb;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
 .evaluationValue{min-width:60px;padding:5px 9px;border-radius:8px;background:rgba(255,255,255,.08);color:#fff;font-variant-numeric:tabular-nums;font-weight:800;text-align:center}
@@ -48,8 +51,8 @@
 .promotionMenu{position:absolute;z-index:2000;display:flex;flex-direction:column;background:#222;border:2px solid #666;border-radius:10px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .promotionMenu img{width:64px;height:64px;display:block;object-fit:contain;background:#fff;cursor:pointer;transition:background .18s ease,transform .18s ease}
 .promotionMenu img:hover{background:#eee;transform:scale(1.04)}
-.game-over{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:rgba(0,0,0,.68);z-index:9999}
-.popup{width:min(430px,100%);padding:38px 32px;transform:translateY(-7vh);background:linear-gradient(145deg,#ffffff,#f4f6fa);color:#111;border-radius:22px;text-align:center;box-shadow:0 25px 80px rgba(0,0,0,.5);animation:gameOverIn .35s cubic-bezier(.22,1,.36,1)}
+.game-over{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;overscroll-behavior:contain;touch-action:none;box-sizing:border-box;background:rgba(0,0,0,.68);z-index:9999}
+.popup{width:min(430px,100%);padding:38px 32px;transform:translateY(-7vh);max-height:calc(100vh - 40px);overflow-y:auto;box-sizing:border-box;}background:linear-gradient(145deg,#ffffff,#f4f6fa);color:#111;border-radius:22px;text-align:center;box-shadow:0 25px 80px rgba(0,0,0,.5);animation:gameOverIn .35s cubic-bezier(.22,1,.36,1)}
 .resultEyebrow{font-size:11px;font-weight:900;letter-spacing:.18em;color:#687284}.popup h1{margin:8px 0 8px;font-size:34px;letter-spacing:-.02em}.popup h2{margin:0 0 22px;font-size:22px}
 .finalAccuracy{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;margin-bottom:16px;border-radius:12px;background:#edf0f5}.finalAccuracy strong{font-size:24px}
 .popup button{display:block;width:100%;margin-top:10px;padding:13px 20px;border:0;border-radius:11px;font-size:16px;font-weight:850;cursor:pointer;transition:transform .18s cubic-bezier(.22,1,.36,1),filter .18s ease,background .18s ease}
@@ -57,6 +60,9 @@
 @keyframes gameOverIn{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:1100px){.playerStack,.evaluationBarRow,.capturedRow,.board{width:min(640px,100%)}}
 @media(max-width:700px){
+  .game-over{align-items:flex-start;justify-content:center;padding:clamp(150px,38vh,330px) 12px 24px;overflow:hidden}
+  .popup{transform:none;width:min(430px,calc(100vw - 24px));max-height:calc(100vh - clamp(174px,40vh,350px));padding:26px 22px;border-radius:18px}
+
   .boardWrapper{padding:0 4px}.playerStack{width:100%;gap:6px}.playerCard{padding:7px 9px;border-radius:12px}
   .playerAvatar{width:38px;height:38px;border-radius:10px}.playerName{font-size:14px}.playerMeta{font-size:9px}.playerClock{font-size:8px}
   .evaluationBarRow{width:100%}.moveQuality{max-width:58%}.capturedRow{width:100%;min-height:27px}.capturedBox{min-height:28px;padding:2px 5px}
