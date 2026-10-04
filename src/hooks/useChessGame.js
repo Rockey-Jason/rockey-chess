@@ -21,17 +21,15 @@ const botRating = {
 const getRatingGain = (opponentRating, playerRating) => {
   const diff = Number(opponentRating) - Number(playerRating);
 
-  // 레이팅 차이 10점마다 승리 보상이 정확히 1씩 변한다.
-  // 상대가 나보다 낮으면 감소하고, 높으면 증가한다.
-  return Math.max(0, Math.min(170, 50 + Math.trunc(diff / 10)));
+  // 레이팅 차이 25점마다 승리 보상이 1씩 변한다.
+  return Math.max(0, Math.min(170, 50 + Math.trunc(diff / 25)));
 };
 
 const getRatingLoss = (opponentRating, playerRating) => {
   const diff = Number(opponentRating) - Number(playerRating);
 
-  // 레이팅 차이 10점마다 기본 패배 감소량이 정확히 1씩 변한다.
-  // 상대가 나보다 낮으면 더 많이 잃고, 높으면 더 적게 잃는다.
-  return Math.max(0, Math.min(170, 50 - Math.trunc(diff / 10)));
+  // 레이팅 차이 25점마다 기본 패배 감소량이 1씩 변한다.
+  return Math.max(0, Math.min(170, 50 - Math.trunc(diff / 25)));
 };
 
 const STAT_KEYS = [
