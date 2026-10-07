@@ -1,13 +1,24 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import "../App.css";
 import Sidebar from "../components/sidebar/Sidebar";
 import Board from "../components/board/Board";
 import AchievementToast from "../components/AchievementToast";
 import useChessGame from "../hooks/useChessGame";
+import { supabase } from "../supabase";
 
 export default function Chess() {
     const chess = useChessGame();
     const { matchLocked, gameOver, achievementEvent, clearAchievementEvent } = chess;
+    const missionSent = useRef(false);
+
+    useEffect(() => {
+        if (!gameOver || missionSent.current) return;
+        missionSent.current = true;
+        supabase.rpc("complete_daily_mission", { p_mission_key: "play_chess" })
+            .then(({ error }) => {
+                if (error) console.warn("Daily mission:", error.message);
+            });
+    }, [gameOver]);
 
     /*
      * 경기 중에는 실수로 새로고침/닫기를 누르는 것을 막는다.
