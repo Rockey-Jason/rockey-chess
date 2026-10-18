@@ -1,1 +1,29 @@
 .pageContent{min-width:0}.appShell .featurePage{min-height:100vh}.appShell .featureShell{max-width:1240px}
+
+
+/* Shared Doldol main-site navigation button: same geometry/colors as Doldol Site. */
+.dori-main-site-button {
+  position:fixed!important;left:12px!important;top:12px!important;z-index:10000!important;
+  box-sizing:border-box!important;display:inline-flex!important;align-items:center!important;justify-content:flex-start!important;
+  gap:9px!important;width:166px!important;min-width:166px!important;max-width:calc(100vw - 24px)!important;
+  height:46px!important;min-height:46px!important;margin:0!important;padding:7px 10px!important;overflow:hidden!important;
+  border:1px solid rgba(137,164,255,.36)!important;border-radius:13px!important;color:#f7f9ff!important;
+  background:linear-gradient(140deg,rgba(44,61,146,.94),rgba(13,20,61,.96))!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.13)!important;
+  backdrop-filter:blur(16px)!important;-webkit-backdrop-filter:blur(16px)!important;
+  font-family:"HancomMalrangmalrang","Jua",sans-serif!important;font-size:13px!important;font-weight:400!important;
+  line-height:1!important;letter-spacing:0!important;text-align:left!important;text-decoration:none!important;
+  white-space:nowrap!important;cursor:pointer!important;
+}
+.dori-main-site-button::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(108deg,transparent 15%,rgba(255,255,255,.13) 50%,transparent 85%);transform:translateX(-125%);transition:transform .55s cubic-bezier(.16,1,.3,1)}
+.dori-main-site-button:hover{transform:translateY(-2px)!important;border-color:rgba(155,187,255,.72)!important;background:linear-gradient(140deg,rgba(54,76,177,.98),rgba(14,23,72,.98))!important;box-shadow:0 15px 32px rgba(40,57,166,.28),inset 0 1px rgba(255,255,255,.18)!important}
+.dori-main-site-button:hover::before{transform:translateX(125%)}
+.dori-main-home-mark{box-sizing:border-box!important;display:grid!important;place-items:center!important;flex:0 0 29px!important;width:29px!important;min-width:29px!important;height:29px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:9px!important;color:#fff!important;background:linear-gradient(145deg,#7d91ff,#5d48c7)!important;box-shadow:inset 0 1px rgba(255,255,255,.24),0 5px 14px rgba(70,86,220,.24)!important;font:800 13px/1 Arial,sans-serif!important}
+.dori-main-home-label{display:block!important;flex:1 1 auto!important;min-width:0!important;overflow:hidden!important;color:inherit!important;font:inherit!important;text-overflow:ellipsis!important}
+.dori-main-home-arrow{display:block!important;flex:0 0 auto!important;margin-left:auto!important;color:rgba(224,232,255,.72)!important;font:700 17px/1 Arial,sans-serif!important;transition:transform .22s ease,color .22s ease!important}
+.dori-main-site-button:hover .dori-main-home-arrow{transform:translate(2px,-1px)!important;color:#fff!important}
+.dori-main-site-button:focus-visible{outline:2px solid rgba(119,221,255,.92)!important;outline-offset:3px!important}
+.siteSidebar{padding-top:76px}
+@media(max-width:900px){.siteSidebar{padding-top:76px!important}.appShell .pageContent{padding-top:54px}}
+@media(max-width:560px){.dori-main-site-button{width:152px!important;min-width:152px!important;height:43px!important;min-height:43px!important;gap:7px!important;padding:6px 8px!important;border-radius:12px!important;font-size:12px!important}.dori-main-home-mark{flex-basis:27px!important;width:27px!important;min-width:27px!important;height:27px!important;border-radius:8px!important;font-size:12px!important}}
+@media(prefers-reduced-motion:reduce){.dori-main-site-button::before{display:none!important}}
