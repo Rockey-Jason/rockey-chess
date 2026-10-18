@@ -24,6 +24,6 @@
 .dori-main-site-button:hover .dori-main-home-arrow{transform:translate(2px,-1px)!important;color:#fff!important}
 .dori-main-site-button:focus-visible{outline:2px solid rgba(119,221,255,.92)!important;outline-offset:3px!important}
 .siteSidebar{padding-top:76px}
-@media(max-width:900px){.siteSidebar{padding-top:76px!important}.appShell .pageContent{padding-top:54px}}
+@media(max-width:900px){.siteSidebar{padding-top:76px!important}.appShell .pageContent{padding-top:68px}}
 @media(max-width:560px){.dori-main-site-button{width:152px!important;min-width:152px!important;height:43px!important;min-height:43px!important;gap:7px!important;padding:6px 8px!important;border-radius:12px!important;font-size:12px!important}.dori-main-home-mark{flex-basis:27px!important;width:27px!important;min-width:27px!important;height:27px!important;border-radius:8px!important;font-size:12px!important}}
 @media(prefers-reduced-motion:reduce){.dori-main-site-button::before{display:none!important}}
