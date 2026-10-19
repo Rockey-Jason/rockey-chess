@@ -985,20 +985,44 @@ const say = useCallback(
   }, [claimAchievement, currentBot]);
 
   const saveCompletedGame = useCallback(async (summary, finalResult) => {
-    if (savedGameRef.current) return;
-    savedGameRef.current = true;
+    if (savedGameRef.current) return null;
+
     const { user, loginId } = await getLoginIdAndProfile();
-    if (!user || !loginId) return;
+    if (!user) {
+      console.warn("[Rockey Chess] 로그인 세션이 없어 경기 기록을 저장하지 못했습니다.");
+      return null;
+    }
+
+    // Mark the game saved only after the DB insert succeeds. Previously the guard
+    // was set before the insert and a missing chess_games.login_id column caused
+    // the result to be silently lost forever for this game.
     const { data, error } = await supabase.from("chess_games").insert({
-      user_id: user.id, login_id: loginId, mode: "bot", bot_id: currentBot, result: finalResult,
-      pgn: summary?.pgn || game.pgn(), accuracy: Number(summary?.accuracy || accuracy || 0),
-      summary: summary || {}
+      user_id: user.id,
+      login_id: loginId || null,
+      mode: "bot",
+      bot_id: currentBot,
+      result: finalResult,
+      pgn: summary?.pgn || game.pgn(),
+      accuracy: Number(summary?.accuracy || accuracy || 0),
+      summary: { ...(summary || {}), result: finalResult, white: summary?.white || "Player" }
     }).select("id").single();
-    if (error) console.warn("Game save failed", error);
+
+    if (error || !data?.id) {
+      console.error("[Rockey Chess] 경기 기록 저장 실패. 업적 진행도는 저장된 경기 기록 기준이라 이번 경기를 반영할 수 없습니다.", error || "경기 ID가 반환되지 않았습니다.");
+      return null;
+    }
+
+    savedGameRef.current = true;
+
     const reward = finalResult === "1-0" ? 100 : finalResult === "1/2-1/2" ? 40 : 15;
-    const { data: coinData, error: coinError } = await supabase.rpc("award_rock_king_coin", { p_amount: reward, p_login_id: loginId });
-    if (!coinError && coinData?.balance !== undefined) setRockKingCoin(Number(coinData.balance));
-    return data?.id || null;
+    const { data: coinData, error: coinError } = await supabase.rpc("award_rock_king_coin", { p_amount: reward, p_login_id: loginId || "" });
+    if (coinError) {
+      console.warn("[Rockey Chess] 경기 기록은 저장됐지만 도로늄 코인 보상 갱신에 실패했습니다.", coinError);
+    } else if (coinData?.balance !== undefined) {
+      setRockKingCoin(Number(coinData.balance));
+    }
+
+    return data.id;
   }, [accuracy, currentBot, game]);
 
   const analyzeGame = useCallback(async () => {
@@ -1074,7 +1098,13 @@ const say = useCallback(
 
     const summary = finalizeSummary(result);
     setGameSummary(summary);
-    saveCompletedGame(summary, result).then(() => checkChessAchievements(result));
+    saveCompletedGame(summary, result).then(savedGameId => {
+      if (!savedGameId) {
+        console.warn("[Rockey Chess] 저장된 경기 ID가 없으므로 업적 달성 판정을 건너뜁니다.");
+        return;
+      }
+      return checkChessAchievements(result);
+    });
   }, [
     gameOver,
     result,
