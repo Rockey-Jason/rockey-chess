@@ -22,7 +22,7 @@ export default function PvP(){
  const [opponent,setOpponent]=useState(null),[finished,setFinished]=useState(false),[ratingChange,setRatingChange]=useState(null);
  const [messages,setMessages]=useState([]),[chat,setChat]=useState(""),[drawOffer,setDrawOffer]=useState(false),[rematchOffer,setRematchOffer]=useState(false),[lastChatNotice,setLastChatNotice]=useState("");
  const [rematchPending,setRematchPending]=useState(false);
- const pointerRef=useRef(null),gameRef=useRef(game),colorRef=useRef(color),finishedRef=useRef(finished),channelRef=useRef(null),userRef=useRef(user),roomRef=useRef(room);
+ const pointerRef=useRef(null),gameRef=useRef(game),colorRef=useRef(color),finishedRef=useRef(finished),finishingRef=useRef(false),channelRef=useRef(null),userRef=useRef(user),roomRef=useRef(room);
  gameRef.current=game;colorRef.current=color;finishedRef.current=finished;userRef.current=user;roomRef.current=room;
 
  const load=useCallback(async()=>{const {data:{user}}=await supabase.auth.getUser();setUser(user);const id=loginFromUser(user);setLoginId(id);if(!user||!id)return;const {data}=await supabase.from("users").select("nickname,name,login_id,chess_rating,profile_image,avatar_url,rock_king_coin").eq("login_id",id).maybeSingle();setProfile(data||{});},[]);
@@ -48,14 +48,24 @@ export default function PvP(){
  },[]);
 
 
- const finishLocal=useCallback(async(result)=>{
-   if(finishedRef.current)return;
-   finishedRef.current=true;setFinished(true);
-   const winner=result==="1-0"?"w":result==="0-1"?"b":null;const won=winner===colorRef.current;
-   setStatus(result==="1/2-1/2"?"무승부 · 레이팅 변동 없음":won?"승리했습니다!":"패배했습니다!");
-   sound(result==="1/2-1/2"?"draw":won?"win":"loss");
-   broadcast("result",{result,finishedBy:userRef.current?.id,winner});
-   if(roomRef.current?.id){const {data,error}=await supabase.rpc("finish_pvp_game",{p_room_id:roomRef.current.id,p_result:result});if(error){setStatus("경기 결과 저장에 실패했습니다. "+error.message);return}if(data?.rating_change!==undefined)setRatingChange(Number(data.rating_change));await claimPvpAchievements();}
+ const finishLocal=useCallback(async(result,reason="board")=>{
+   if(finishedRef.current||finishingRef.current||!roomRef.current?.id)return;
+   finishingRef.current=true;
+   const {data,error}=await supabase.functions.invoke("dori-chess-finish",{body:{room_id:roomRef.current.id,reason}});
+   if(error||!data?.ok){
+     finishingRef.current=false;
+     setStatus(data?.message||error?.message||"경기 결과를 검증하지 못했습니다.");
+     return;
+   }
+   const finalResult=data.result||result;
+   finishedRef.current=true;setFinished(true);finishingRef.current=false;
+   const winner=finalResult==="1-0"?"w":finalResult==="0-1"?"b":null;
+   const won=winner===colorRef.current;
+   setStatus(finalResult==="1/2-1/2"?"무승부 · 레이팅 변동 없음":won?"승리했습니다!":"패배했습니다!");
+   sound(finalResult==="1/2-1/2"?"draw":won?"win":"loss");
+   setRatingChange(Number(data.rating_change||0));
+   broadcast("result",{result:finalResult,finishedBy:userRef.current?.id,winner});
+   await claimPvpAchievements();
  },[broadcast,claimPvpAchievements]);
 
  useEffect(()=>{
@@ -67,7 +77,7 @@ export default function PvP(){
    .on("broadcast",{event:"draw_offer"},({payload})=>{if(payload?.sender!==user.id){setDrawOffer(true);setStatus("상대가 무승부를 요청했습니다.")}})
    .on("broadcast",{event:"draw_decline"},({payload})=>{if(payload?.sender!==user.id){setStatus("상대가 무승부 요청을 거절했습니다.")}})
    .on("broadcast",{event:"draw_accept"},({payload})=>{if(payload?.sender!==user.id)finishLocal("1/2-1/2")})
-   .on("broadcast",{event:"resign"},({payload})=>{if(payload?.sender!==user.id){setStatus("상대가 기권했습니다.");finishLocal(colorRef.current==="w"?"1-0":"0-1")}})
+   .on("broadcast",{event:"resign"},({payload})=>{if(payload?.sender!==user.id)setStatus("상대가 기권했습니다. 결과를 저장하는 중입니다.")})
    .on("broadcast",{event:"rematch_request"},({payload})=>{if(payload?.sender!==user.id){setRematchOffer(true);setStatus("상대가 재대국을 요청했습니다.")}})
    .on("broadcast",{event:"rematch_start"},async({payload})=>{if(payload?.sender===user.id)return;const {data:updated}=await supabase.from("pvp_rooms").select("*").eq("id",room.id).maybeSingle();if(updated)setRoom(updated);const nextColor=colorRef.current==="w"?"b":"w";setColor(nextColor);colorRef.current=nextColor;const next=new Chess(updated?.fen||undefined);setGame(next);gameRef.current=next;setFinished(false);finishedRef.current=false;setSelected(null);setLastMove(null);setRatingChange(null);setMessages([]);setRematchPending(false);setRematchOffer(false);setStatus(nextColor==="w"?"재대국 시작 · 당신의 차례입니다.":"재대국 시작 · 상대의 첫 수를 기다리세요.");sound("start")})
    .on("broadcast",{event:"result"},async({payload})=>{if(payload?.finishedBy===user.id)return;finishedRef.current=true;setFinished(true);const won=payload.winner===colorRef.current;setStatus(payload.result==="1/2-1/2"?"무승부":won?"승리했습니다!":"상대가 대국을 종료했습니다.");sound(payload.result==="1/2-1/2"?"draw":won?"win":"loss");if(loginId){const {data}=await supabase.from("users").select("chess_rating").eq("login_id",loginId).maybeSingle();if(data?.chess_rating!=null)setRatingChange(Number(data.chess_rating)-me.rating);}})
@@ -111,7 +121,8 @@ export default function PvP(){
  const sendChat=()=>{const text=chat.trim();if(!text||!room)return;const item={id:`${Date.now()}-${Math.random()}`,from:"me",text,time:new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})};setMessages(v=>[...v,item]);broadcast("chat",{sender:user.id,text});setChat("")};
  const offerDraw=async()=>{if(finished||!room)return;const {error}=await supabase.rpc("offer_pvp_draw",{p_room_id:room.id});if(error){setStatus(error.message);return}broadcast("draw_offer",{sender:user.id});setStatus("무승부 요청을 보냈습니다.");};
  const respondDraw=async accept=>{setDrawOffer(false);if(accept){const {error}=await supabase.rpc("accept_pvp_draw",{p_room_id:room.id});if(error){setStatus(error.message);return}broadcast("draw_accept",{sender:user.id});await finishLocal("1/2-1/2")}else{const {error}=await supabase.rpc("decline_pvp_draw",{p_room_id:room.id});if(error){setStatus(error.message);return}broadcast("draw_decline",{sender:user.id});setStatus("상대가 무승부 요청을 거절했습니다.")}};
- const resign=()=>{if(finished)return;broadcast("resign",{sender:user.id});finishLocal(color==="w"?"0-1":"1-0")};
+ const resign=async()=>{if(finished)return;broadcast("resign",{sender:user.id});await finishLocal(color==="w"?"0-1":"1-0","resign")};
+ const claimTimeout=async()=>{if(finished||!room)return;await finishLocal("1/2-1/2","timeout")};
  const requestRematch=()=>{if(!finished)return;setRematchPending(true);broadcast("rematch_request",{sender:user.id});setStatus("재대국 요청을 보냈습니다.")};
  const acceptRematch=async()=>{setRematchOffer(false);if(!room)return;const {data:updated,error}=await supabase.rpc("restart_pvp_room",{p_room_id:room.id});if(error||!updated){setStatus(error?.message||"재대국을 시작하지 못했습니다.");return}const nextColor=color==="w"?"b":"w";setRoom(updated);roomRef.current=updated;broadcast("rematch_start",{sender:user.id});setColor(nextColor);colorRef.current=nextColor;const next=new Chess(updated.fen);setGame(next);gameRef.current=next;setFinished(false);finishedRef.current=false;setSelected(null);setLastMove(null);setRatingChange(null);setMessages([]);setRematchPending(false);setStatus(nextColor==="w"?"재대국 시작 · 당신의 차례입니다.":"재대국 시작 · 상대의 첫 수를 기다리세요.");sound("start")};
  const leave=()=>{channelRef.current&&supabase.removeChannel(channelRef.current);channelRef.current=null;setRoom(null);roomRef.current=null;setColor(null);setOpponent(null);setGame(new Chess());setFinished(false);finishedRef.current=false;setStatus("대기실로 돌아왔습니다.")};
@@ -124,7 +135,7 @@ export default function PvP(){
       <section className="liveGame"><div className="playerBar"><div className="pvpAvatar">{opp.image?<img src={opp.image} alt=""/>:"♟"}</div><div><b>{opp.name||"상대"}</b><small>{opp.rating.toLocaleString()} RATING · {color==="b"?"WHITE":"BLACK"}</small></div><span className="turnBadge">{finished?"FINISHED":game.turn()!==color?"YOUR OPPONENT": "OPPONENT WAITING"}</span></div>
       <div className="pvpClockRow"><div className={game.turn()===(color==="w"?"b":"w")&&!finished?"active":""}><span>{color==="w"?"BLACK":"WHITE"}</span><b>{formatClock(clockMs(color==="w"?"b":"w"))}</b></div><small>{Math.round(Number(room?.time_control_seconds||300)/60)}+{Number(room?.increment_seconds||0)}</small><div className={game.turn()===color&&!finished?"active":""}><span>{color==="w"?"WHITE":"BLACK"}</span><b>{formatClock(clockMs(color||"w"))}</b></div></div><div className="pvpBoard">{board}</div>
       <div className="playerBar self"><div className="pvpAvatar">{me.image?<img src={me.image} alt=""/>:"♙"}</div><div><b>{me.name}</b><small>{me.rating.toLocaleString()} RATING · {color==="w"?"WHITE":"BLACK"}</small></div><span className="turnBadge mine">{finished?"GAME OVER":game.turn()===color?"YOUR TURN":"WAITING"}</span></div>
-      <div className="liveActions"><button onClick={offerDraw} disabled={finished}>🤝 무승부</button><button onClick={resign} disabled={finished}>🏳 기권</button><button onClick={requestRematch} disabled={!finished||rematchPending}>{rematchPending?"요청 보냄":"↻ 재대국"}</button><button onClick={leave}>나가기</button></div>
+      <div className="liveActions"><button onClick={offerDraw} disabled={finished}>🤝 무승부</button><button onClick={resign} disabled={finished}>🏳 기권</button><button onClick={claimTimeout} disabled={finished||game.turn()===color||clockMs(game.turn())>0}>시간 초과 주장</button><button onClick={requestRematch} disabled={!finished||rematchPending}>{rematchPending?"요청 보냄":"↻ 재대국"}</button><button onClick={leave}>나가기</button></div>
       {finished&&<div className="pvpResult"><span>{status}</span><strong>{ratingChange!==null?`${ratingChange>=0?"+":""}${ratingChange} RATING`:"결과 처리 중"}</strong></div>}
       <div className="moveStrip"><span>LIVE MOVES</span>{moveHistory.slice(-10).map((m,i)=><b key={`${m.san}-${i}`}>{m.san}</b>)}</div>
       </section>
