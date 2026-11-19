@@ -29,6 +29,8 @@ function ChessCommandCenter({ chess }) {
             <nav className="chessModeRail" aria-label="체스 모드">
                 <Link className="chessMode active" to="/"><span>♟</span><b>AI 대국</b><small>혼자 연습하기</small></Link>
                 <Link className="chessMode" to="/pvp"><span>⚔</span><b>실시간 대전</b><small>친구 · 랭크 매치</small><em>LIVE</em></Link>
+                <Link className="chessMode" to="/openings"><span>♞</span><b>오프닝 학습</b><small>전략 익히기</small></Link>
+                <Link className="chessMode" to="/stats"><span>▤</span><b>전적 · 통계</b><small>나의 기록</small></Link>
                 <Link className="chessMode" to="/customize"><span>✦</span><b>체스 꾸미기</b><small>나만의 보드</small></Link>
                 <Link className="chessMode" to="/shop"><span>◈</span><b>체스 상점</b><small>아이템 둘러보기</small></Link>
             </nav>
