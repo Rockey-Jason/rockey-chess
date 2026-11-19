@@ -945,43 +945,58 @@ const say = useCallback(
 
   const checkChessAchievements = useCallback(async (finalResult) => {
     await claimAchievement("first_chess");
-    if (finalResult !== "1-0") return;
 
-    // Supabase에 등록된 봇별 첫 승리 업적을 실제 승리 조건과 연결한다.
-    // claim_achievement()가 이미 획득한 업적을 원자적으로 차단하므로
-    // 같은 봇을 여러 번 이겨도 보상/팝업은 최초 1회만 발생한다.
-    const botWinAchievements = {
-      talc: "chess_win_talc",
-      sleep: "chess_win_sleeping",
-      fur: "chess_win_fur",
-      rockey: "chess_win_rockey",
-      army: "chess_win_army",
-      doronum: "chess_win_doronum",
-      brilliant: "chess_win_brilliant"
-    };
-
-    const botAchievementId = botWinAchievements[currentBot];
-    if (botAchievementId) {
-      await claimAchievement(botAchievementId);
+    // Bot-specific first-win achievements remain limited to the selected AI.
+    if (finalResult === "1-0") {
+      const botWinAchievements = {
+        talc: "chess_win_talc",
+        sleep: "chess_win_sleeping",
+        fur: "chess_win_fur",
+        rockey: "chess_win_rockey",
+        army: "chess_win_army",
+        doronum: "chess_win_doronum",
+        brilliant: "chess_win_brilliant"
+      };
+      const botAchievementId = botWinAchievements[currentBot];
+      if (botAchievementId) await claimAchievement(botAchievementId);
     }
 
     const { user } = await getLoginIdAndProfile();
     if (!user) return;
 
-    const { count, error } = await supabase
-      .from("chess_games")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("mode", "bot")
-      .eq("result", "1-0");
+    const [{ count: totalGames, error: totalError }, { count: totalWins, error: winsError }] = await Promise.all([
+      supabase.from("chess_games").select("id", { count: "exact", head: true }).eq("user_id", user.id).in("result", ["1-0", "0-1", "1/2-1/2"]),
+      supabase.from("chess_games").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("result", "1-0")
+    ]);
 
-    if (error) {
-      console.warn("Chess win count failed:", error);
+    if (totalError || winsError) {
+      console.warn("Chess achievement progress lookup failed:", totalError || winsError);
       return;
     }
 
-    if (count >= 10) await claimAchievement("chess_10_win");
-    if (count >= 100) await claimAchievement("chess_100_win");
+    const completed = Number(totalGames || 0);
+    const wins = Number(totalWins || 0);
+    const winMilestones = [
+      [5, "chess_5_win"],
+      [10, "chess_10_win"],
+      [25, "chess_25_win"],
+      [50, "chess_50_win"],
+      [100, "chess_100_win"],
+      [250, "chess_250_win"],
+      [500, "chess_500_win"],
+      [1000, "chess_1000_win"]
+    ];
+    const gameMilestones = [
+      [100, "chess_play_100"],
+      [500, "chess_play_500"]
+    ];
+
+    for (const [target, achievementId] of winMilestones) {
+      if (wins >= target) await claimAchievement(achievementId);
+    }
+    for (const [target, achievementId] of gameMilestones) {
+      if (completed >= target) await claimAchievement(achievementId);
+    }
   }, [claimAchievement, currentBot]);
 
   const saveCompletedGame = useCallback(async (summary, finalResult) => {
