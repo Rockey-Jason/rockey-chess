@@ -31,6 +31,20 @@ export default function PvP(){
 
  const broadcast=useCallback((event,payload)=>{channelRef.current?.send({type:"broadcast",event,payload})},[]);
  const resultForCheckmate=g=>g.isCheckmate()?(g.turn()==="w"?"0-1":"1-0"):"1/2-1/2";
+ const claimPvpAchievements=useCallback(async()=>{
+   const playerId=userRef.current?.id;
+   if(!playerId)return;
+   const claim=async id=>{const {error}=await supabase.rpc("claim_achievement",{p_achievement_id:id});if(error)console.warn("PvP achievement:",id,error.message)};
+   await claim("first_chess");
+   const [{count:total,error:totalError},{count:wins,error:winsError}]=await Promise.all([
+     supabase.from("chess_games").select("id",{count:"exact",head:true}).eq("user_id",playerId).in("result",["1-0","0-1","1/2-1/2"]),
+     supabase.from("chess_games").select("id",{count:"exact",head:true}).eq("user_id",playerId).eq("result","1-0")
+   ]);
+   if(totalError||winsError){console.warn("PvP achievement count:",totalError||winsError);return}
+   for(const [limit,id] of [[5,"chess_5_win"],[10,"chess_10_win"],[25,"chess_25_win"],[50,"chess_50_win"],[100,"chess_100_win"],[250,"chess_250_win"],[500,"chess_500_win"],[1000,"chess_1000_win"]])if(Number(wins||0)>=limit)await claim(id);
+   for(const [limit,id] of [[100,"chess_play_100"],[500,"chess_play_500"]])if(Number(total||0)>=limit)await claim(id);
+ },[]);
+
 
  const finishLocal=useCallback(async(result)=>{
    if(finishedRef.current)return;
@@ -39,8 +53,8 @@ export default function PvP(){
    setStatus(result==="1/2-1/2"?"무승부 · 레이팅 변동 없음":won?"승리했습니다!":"패배했습니다!");
    sound(result==="1/2-1/2"?"draw":won?"win":"loss");
    broadcast("result",{result,finishedBy:userRef.current?.id,winner});
-   if(roomRef.current?.id){const {data,error}=await supabase.rpc("finish_pvp_game",{p_room_id:roomRef.current.id,p_result:result});if(!error&&data?.rating_change!==undefined)setRatingChange(Number(data.rating_change));}
- },[broadcast]);
+   if(roomRef.current?.id){const {data,error}=await supabase.rpc("finish_pvp_game",{p_room_id:roomRef.current.id,p_result:result});if(error){setStatus("경기 결과 저장에 실패했습니다. "+error.message);return}if(data?.rating_change!==undefined)setRatingChange(Number(data.rating_change));await claimPvpAchievements();}
+ },[broadcast,claimPvpAchievements]);
 
  useEffect(()=>{
   if(!room?.id||!user?.id)return;
@@ -93,8 +107,8 @@ export default function PvP(){
  const clickSquare=s=>{if(finishedRef.current||gameRef.current.turn()!==colorRef.current)return;const p=gameRef.current.get(s);if(selected&&legal.includes(s)){moveTo(selected,s);return}setSelected(p?.color===colorRef.current?s:null)};
  const board=useMemo(()=>{const out=[];for(let rank=8;rank>=1;rank--){for(let fi=0;fi<8;fi++){const square=FILES[fi]+rank,piece=game.get(square),light=(rank+fi)%2===0,sel=selected===square,legalSquare=legal.includes(square),last=lastMove?.from===square||lastMove?.to===square;out.push(<button key={square} type="button" className={`pvpSquare ${light?"light":"dark"} ${sel?"selected":""} ${legalSquare?"legal":""} ${last?"last":""}`} onClick={()=>clickSquare(square)} onPointerDown={e=>{if(e.pointerType!=="mouse"&&piece?.color===colorRef.current){pointerRef.current=square;setSelected(square)}}} onPointerUp={e=>{if(e.pointerType!=="mouse"&&pointerRef.current){const from=pointerRef.current;pointerRef.current=null;if(from!==square)moveTo(from,square)}}} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const from=e.dataTransfer.getData("from");if(from)moveTo(from,square)}}>{piece&&<img draggable onDragStart={e=>{e.dataTransfer.setData("from",square);setSelected(square)}} src={`${import.meta.env.BASE_URL}pieces/${piece.color}${piece.type.toUpperCase()}.png`} alt=""/>}</button>)}}return out},[game,lastMove,legal,moveTo,selected]);
  const sendChat=()=>{const text=chat.trim();if(!text||!room)return;const item={id:`${Date.now()}-${Math.random()}`,from:"me",text,time:new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})};setMessages(v=>[...v,item]);broadcast("chat",{sender:user.id,text});setChat("")};
- const offerDraw=()=>{if(finished)return;broadcast("draw_offer",{sender:user.id});setStatus("무승부 요청을 보냈습니다.");};
- const respondDraw=accept=>{setDrawOffer(false);if(accept){broadcast("draw_accept",{sender:user.id});finishLocal("1/2-1/2")}else{broadcast("draw_decline",{sender:user.id});setStatus("무승부 요청을 거절했습니다.")}};
+ const offerDraw=async()=>{if(finished||!room)return;const {error}=await supabase.rpc("offer_pvp_draw",{p_room_id:room.id});if(error){setStatus(error.message);return}broadcast("draw_offer",{sender:user.id});setStatus("무승부 요청을 보냈습니다.");};
+ const respondDraw=async accept=>{setDrawOffer(false);if(accept){const {error}=await supabase.rpc("accept_pvp_draw",{p_room_id:room.id});if(error){setStatus(error.message);return}broadcast("draw_accept",{sender:user.id});await finishLocal("1/2-1/2")}else{const {error}=await supabase.rpc("decline_pvp_draw",{p_room_id:room.id});if(error){setStatus(error.message);return}broadcast("draw_decline",{sender:user.id});setStatus("상대가 무승부 요청을 거절했습니다.")}};
  const resign=()=>{if(finished)return;broadcast("resign",{sender:user.id});finishLocal(color==="w"?"0-1":"1-0")};
  const requestRematch=()=>{if(!finished)return;setRematchPending(true);broadcast("rematch_request",{sender:user.id});setStatus("재대국 요청을 보냈습니다.")};
  const acceptRematch=async()=>{setRematchOffer(false);if(!room)return;const {data:updated,error}=await supabase.rpc("restart_pvp_room",{p_room_id:room.id});if(error||!updated){setStatus(error?.message||"재대국을 시작하지 못했습니다.");return}const nextColor=color==="w"?"b":"w";setRoom(updated);roomRef.current=updated;broadcast("rematch_start",{sender:user.id});setColor(nextColor);colorRef.current=nextColor;const next=new Chess(updated.fen);setGame(next);gameRef.current=next;setFinished(false);finishedRef.current=false;setSelected(null);setLastMove(null);setRatingChange(null);setMessages([]);setRematchPending(false);setStatus(nextColor==="w"?"재대국 시작 · 당신의 차례입니다.":"재대국 시작 · 상대의 첫 수를 기다리세요.");sound("start")};
