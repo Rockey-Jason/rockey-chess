@@ -66,7 +66,30 @@ export default function PvP(){
  const join=async()=>{if(!user||!loginId){setStatus("로그인 후 이용하세요.");return}const code=joinCode.trim().toUpperCase();if(!code)return;const {data}=await supabase.from("pvp_rooms").select("*").eq("code",code).eq("status","waiting").maybeSingle();if(!data){setStatus("입장 가능한 방을 찾지 못했습니다.");return}const {data:updated,error}=await supabase.from("pvp_rooms").update({guest_id:user.id,guest_login_id:loginId,guest_rating:me.rating,status:"playing"}).eq("id",data.id).eq("status","waiting").select().single();if(error||!updated){setStatus(error?.message||"방 참가에 실패했습니다.");return}setRoom(updated);roomRef.current=updated;setColor("b");colorRef.current="b";setGame(new Chess(updated.fen));setOpponent({name:updated.host_login_id,rating:updated.host_rating});setFinished(false);finishedRef.current=false;setStatus("대결 시작 · 백의 첫 수를 기다립니다.")};
 
  const legal=useMemo(()=>selected?game.moves({square:selected,verbose:true}).map(m=>m.to):[],[game,selected]);
- const moveTo=useCallback((from,to)=>{if(finishedRef.current||!roomRef.current||gameRef.current.turn()!==colorRef.current)return;try{const next=new Chess(gameRef.current.fen());const move=next.move({from,to,promotion:"q"});if(!move)return;gameRef.current=next;setGame(next);setSelected(null);setLastMove(move);sound("move");broadcast("state",{sender:userRef.current.id,fen:next.fen(),san:move.san,move});if(next.isGameOver())finishLocal(resultForCheckmate(next));}catch{setStatus("수 처리 중 오류가 발생했습니다.")}},[broadcast,finishLocal]);
+ const moveTo=useCallback(async(from,to)=>{
+   if(finishedRef.current||!roomRef.current||gameRef.current.turn()!==colorRef.current)return;
+   try{
+     const {data,error}=await supabase.functions.invoke("dori-chess-move",{body:{room_id:roomRef.current.id,from,to,promotion:"q"}});
+     if(error||!data?.ok){
+       setStatus(data?.message||error?.message||"합법적인 수인지 확인하지 못했습니다.");
+       const {data:latest}=await supabase.from("pvp_rooms").select("fen,current_ply,last_move_san,pgn,white_remaining_ms,black_remaining_ms,turn_started_at,status").eq("id",roomRef.current.id).maybeSingle();
+       if(latest?.fen){const refreshed=new Chess(latest.fen);setGame(refreshed);gameRef.current=refreshed;setRoom(prev=>({...prev,...latest}));setLastMove(refreshed.history({verbose:true}).at(-1)||null);}
+       return;
+     }
+     if(data.finished&&!data.fen){
+       setStatus("시간이 종료되었습니다.");
+       if(data.result)await finishLocal(data.result);
+       return;
+     }
+     const next=new Chess(data.fen);
+     const move=next.history({verbose:true}).at(-1);
+     gameRef.current=next;setGame(next);setSelected(null);setLastMove(move||null);
+     setRoom(prev=>({...prev,fen:data.fen,current_ply:data.ply,pgn:data.pgn,white_remaining_ms:data.clocks?.whiteMs,black_remaining_ms:data.clocks?.blackMs,turn_started_at:data.clocks?.turnStartedAt}));
+     sound("move");
+     broadcast("state",{sender:userRef.current.id,ply:data.ply});
+     if(data.finished&&data.result)await finishLocal(data.result);
+   }catch(error){setStatus(error?.message||"수 처리 중 오류가 발생했습니다.");}
+ },[broadcast,finishLocal]);
  const clickSquare=s=>{if(finishedRef.current||gameRef.current.turn()!==colorRef.current)return;const p=gameRef.current.get(s);if(selected&&legal.includes(s)){moveTo(selected,s);return}setSelected(p?.color===colorRef.current?s:null)};
  const board=useMemo(()=>{const out=[];for(let rank=8;rank>=1;rank--){for(let fi=0;fi<8;fi++){const square=FILES[fi]+rank,piece=game.get(square),light=(rank+fi)%2===0,sel=selected===square,legalSquare=legal.includes(square),last=lastMove?.from===square||lastMove?.to===square;out.push(<button key={square} type="button" className={`pvpSquare ${light?"light":"dark"} ${sel?"selected":""} ${legalSquare?"legal":""} ${last?"last":""}`} onClick={()=>clickSquare(square)} onPointerDown={e=>{if(e.pointerType!=="mouse"&&piece?.color===colorRef.current){pointerRef.current=square;setSelected(square)}}} onPointerUp={e=>{if(e.pointerType!=="mouse"&&pointerRef.current){const from=pointerRef.current;pointerRef.current=null;if(from!==square)moveTo(from,square)}}} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const from=e.dataTransfer.getData("from");if(from)moveTo(from,square)}}>{piece&&<img draggable onDragStart={e=>{e.dataTransfer.setData("from",square);setSelected(square)}} src={`${import.meta.env.BASE_URL}pieces/${piece.color}${piece.type.toUpperCase()}.png`} alt=""/>}</button>)}}return out},[game,lastMove,legal,moveTo,selected]);
  const sendChat=()=>{const text=chat.trim();if(!text||!room)return;const item={id:`${Date.now()}-${Math.random()}`,from:"me",text,time:new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})};setMessages(v=>[...v,item]);broadcast("chat",{sender:user.id,text});setChat("")};
