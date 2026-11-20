@@ -29,7 +29,7 @@ describe("ChessGame - 실제 기물 이동 검증 연결", () => {
         const game = new ChessGame();
 
         expect(
-            game.canPieceMove(
+            game.canMove(
                 { row: 1, col: 0 },
                 { row: 2, col: 0 }
             )
@@ -40,7 +40,7 @@ describe("ChessGame - 실제 기물 이동 검증 연결", () => {
         const game = new ChessGame();
 
         expect(
-            game.canPieceMove(
+            game.canMove(
                 { row: 7, col: 0 },
                 { row: 6, col: 0 }
             )
