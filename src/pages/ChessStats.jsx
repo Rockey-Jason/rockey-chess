@@ -41,7 +41,7 @@ export default function ChessStats() {
       setUser(currentUser);
       const loginId = loginFromUser(currentUser);
       const [profileResult, gamesResult] = await Promise.all([
-        supabase.from("users").select("login_id,nickname,name,chess_rating,profile_image").eq("login_id", loginId).maybeSingle(),
+        supabase.from("users").select("login_id,name,chess_rating,profile_image").eq("login_id", loginId).maybeSingle(),
         supabase.from("chess_games").select("id,mode,bot_id,result,pgn,accuracy,summary,created_at,pvp_room_id").eq("user_id", currentUser.id).order("created_at", { ascending: false }).limit(500)
       ]);
       if (!alive) return;
