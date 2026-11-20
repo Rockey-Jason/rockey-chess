@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Chess } from "chess.js";
-import { OPENINGS } from "./OpeningStudy.jsx";
+import { OPENINGS } from "../data/chessOpenings.js";
 
 const toUci = move => `${move.from}${move.to}${move.promotion || ""}`;
 
