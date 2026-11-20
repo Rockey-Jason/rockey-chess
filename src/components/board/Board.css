@@ -156,3 +156,38 @@
   to{opacity:1}
 }
 
+
+
+/* DORI CHESS — board frame, player rails and move motion */
+.playerStack{gap:10px;margin-bottom:13px}
+.playerCard{position:relative;overflow:hidden;padding:11px 14px;border-color:rgba(180,204,235,.13);border-radius:16px;background:linear-gradient(115deg,rgba(24,43,68,.98),rgba(9,21,37,.98));box-shadow:0 12px 30px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.045);transition:border-color .28s,transform .28s,box-shadow .28s}
+.playerCard:after{content:"";position:absolute;top:0;bottom:0;left:0;width:2px;background:linear-gradient(180deg,transparent,rgba(229,196,133,.62),transparent);opacity:.8}
+.playerCard:hover{transform:translateY(-2px);border-color:rgba(226,196,141,.25);box-shadow:0 16px 34px rgba(0,0,0,.24)}
+.selfCard{background:linear-gradient(115deg,rgba(29,49,77,.98),rgba(11,23,41,.98))}
+.playerAvatar{border-color:rgba(232,201,133,.24);border-radius:13px;box-shadow:0 5px 14px rgba(0,0,0,.22)}
+.playerName{font-weight:700;letter-spacing:-.02em}
+.playerMeta{color:#9cacc2;font-weight:400}
+.playerClock{padding:6px 9px;border:1px solid rgba(232,201,133,.14);border-radius:99px;background:rgba(232,201,133,.055);color:#d9c18f;font-size:9px}
+.evaluationBarRow{margin:5px 0 9px;min-height:36px}
+.evaluationLabel{color:#a6b6cc;font-weight:400;letter-spacing:.12em}
+.evaluationValue{border:1px solid rgba(214,190,143,.13);background:rgba(255,255,255,.045);color:#f1d8a6;border-radius:9px}
+.moveQuality{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.045);font-weight:700}
+.capturedRow{min-height:38px;margin:3px 0;justify-content:space-between;padding:0 3px}
+.capturedBox{background:linear-gradient(145deg,rgba(222,211,193,.95),rgba(190,177,157,.95));box-shadow:inset 0 1px rgba(255,255,255,.45),0 4px 12px rgba(0,0,0,.12)}
+.capturedPiece{transition:transform .25s cubic-bezier(.2,.8,.2,1),filter .25s;animation:capturedPop .32s cubic-bezier(.2,.8,.2,1) both}
+.capturedPiece:hover{transform:translateY(-3px) scale(1.12)}
+@keyframes capturedPop{from{opacity:0;transform:scale(.45) rotate(-12deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+.board{border:5px solid #9b7a4e;border-radius:15px;background:#b58b62;box-shadow:0 24px 58px rgba(0,0,0,.42),0 0 0 1px rgba(236,206,152,.2),0 0 38px rgba(167,130,74,.11),inset 0 0 0 2px rgba(255,255,255,.1);transition:box-shadow .35s,border-color .35s}
+.board:after{content:"";position:absolute;inset:0;z-index:30;pointer-events:none;border:1px solid rgba(255,255,255,.13);border-radius:8px}
+.movingPiece{z-index:1000;transition:transform 285ms cubic-bezier(.2,.82,.18,1);filter:drop-shadow(0 9px 7px rgba(0,0,0,.3))}
+.movingPieceImg{filter:drop-shadow(0 3px 2px rgba(0,0,0,.2))}
+.draggingPiece{z-index:1100;filter:drop-shadow(0 14px 12px rgba(0,0,0,.36))}
+.moveEffectOverlay{pointer-events:none;animation:moveEffectArrival .62s cubic-bezier(.18,.72,.18,1) both}
+@keyframes moveEffectArrival{0%{opacity:0;transform:scale(.35) rotate(-18deg)}30%{opacity:1;transform:scale(1.12) rotate(5deg)}100%{opacity:0;transform:scale(1.65) rotate(24deg)}}
+.playerClock:has(+*){transition:color .25s}
+.popup{border:1px solid rgba(222,195,145,.5);background:linear-gradient(145deg,#fffdf8,#f1e8d8);box-shadow:0 35px 100px rgba(0,0,0,.58),0 0 0 8px rgba(225,192,129,.07);animation:gameOverIn .52s cubic-bezier(.16,1,.3,1)}
+.popup h1{color:#14233a;letter-spacing:-.045em}
+.popup h2{color:#88642e}
+.primaryAction{background:linear-gradient(135deg,#1b304a,#0a182a);box-shadow:0 8px 20px rgba(10,24,42,.18)}
+.secondaryAction{background:#e8dfce;color:#293548}
+@media(max-width:700px){.board{border-width:3px;border-radius:10px}.playerCard{padding:8px 10px}.capturedBox{border-radius:8px}}
