@@ -22,7 +22,7 @@ export default function SiteSidebar() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!alive || !user) return;
       const loginId = user.user_metadata?.login_id || user.user_metadata?.username || user.email?.split("@")[0] || user.id;
-      const { data } = await supabase.from("users").select("nickname,login_id,chess_rating,profile_image,rock_king_coin").eq("login_id", loginId).maybeSingle();
+      const { data } = await supabase.from("users").select("name,login_id,chess_rating,profile_image,rock_king_coin").eq("login_id", loginId).maybeSingle();
       if (alive) setProfile({ ...data, loginId });
     })();
     return () => { alive = false; };
