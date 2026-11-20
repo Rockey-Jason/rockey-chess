@@ -25,7 +25,7 @@ export default function PvP(){
  const pointerRef=useRef(null),gameRef=useRef(game),colorRef=useRef(color),finishedRef=useRef(finished),finishingRef=useRef(false),channelRef=useRef(null),userRef=useRef(user),roomRef=useRef(room);
  gameRef.current=game;colorRef.current=color;finishedRef.current=finished;userRef.current=user;roomRef.current=room;
 
- const load=useCallback(async()=>{const {data:{user}}=await supabase.auth.getUser();setUser(user);const id=loginFromUser(user);setLoginId(id);if(!user||!id)return;const {data}=await supabase.from("users").select("nickname,name,login_id,chess_rating,profile_image,avatar_url,rock_king_coin").eq("login_id",id).maybeSingle();setProfile(data||{});},[]);
+ const load=useCallback(async()=>{const {data:{user}}=await supabase.auth.getUser();setUser(user);const id=loginFromUser(user);setLoginId(id);if(!user||!id)return;const {data}=await supabase.from("users").select("name,login_id,chess_rating,profile_image,rock_king_coin").eq("login_id",id).maybeSingle();setProfile(data||{});},[]);
  useEffect(()=>{load()},[load]);
  useEffect(()=>{if(!room?.id||finished)return;const timer=setInterval(()=>setClockNow(Date.now()),250);return()=>clearInterval(timer)},[room?.id,finished]);
  const me=profileFromRow({...profile,login_id:loginId},"나");
