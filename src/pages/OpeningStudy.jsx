@@ -1,16 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Chess } from "chess.js";
+import { OPENINGS } from "../data/chessOpenings";
 import { supabase } from "../supabase";
 import "../styles/feature.css";
 import "./OpeningStudy.css";
-
-const OPENINGS = [
-  { id:"italian", name:"이탈리안 게임", family:"오픈 게임", level:"초급", moves:["e2e4","e7e5","g1f3","b8c6","f1c4"], lesson:["중앙 공간을 확보하고 비숍의 길을 엽니다.","흑도 중앙을 차지해 균형을 맞춥니다.","나이트를 전개하면서 e5 폰을 공격합니다.","나이트를 전개해 e5를 지킵니다.","비숍을 c4에 두어 f7을 압박합니다."], goal:"빠른 기물 전개와 중앙 장악의 기본을 익힙니다.", idea:"중앙 폰을 전진시키고, 나이트와 비숍을 자연스럽게 전개한 뒤 안전하게 캐슬링하는 것이 핵심입니다." },
-  { id:"sicilian", name:"시실리안 디펜스", family:"비대칭 오프닝", level:"중급", moves:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6"], lesson:["백은 e4로 중앙을 차지합니다.","흑은 c5로 비대칭적인 중앙 구조를 만듭니다.","나이트를 전개해 d4와 e5를 지원합니다.","d6로 e5를 통제하고 구조를 안정시킵니다.","백은 d4로 중앙을 열어 전개 속도를 얻습니다.","흑은 cxd4로 중앙 폰을 교환합니다.","나이트로 되잡아 중앙에 기물을 배치합니다.","흑은 나이트를 전개하며 e4를 압박합니다."], goal:"비대칭 폰 구조와 적극적인 반격 아이디어를 배웁니다.", idea:"시실리안은 양쪽의 폰 구조가 달라지는 오프닝입니다. 백은 공간과 전개, 흑은 반격 기회를 노리는 경우가 많습니다." },
-  { id:"queens-gambit", name:"퀸즈 갬빗", family:"퀸즈 폰 게임", level:"초급", moves:["d2d4","d7d5","c2c4","e7e6","b1c3","g8f6","c1g5","f8e7"], lesson:["d4로 중앙을 차지하고 퀸즈 폰 구조를 시작합니다.","흑은 d5로 중앙을 맞섭니다.","c4로 d5 폰에 압박을 가합니다.","e6로 중앙을 지키고 비숍의 길을 엽니다.","나이트를 전개해 d5를 압박합니다.","흑도 나이트를 전개해 중앙을 지킵니다.","비숍을 전개해 f6 나이트를 핀합니다.","흑은 비숍을 전개해 핀을 풀 준비를 합니다."], goal:"폰 교환, 중앙 압박, 기물 전개의 관계를 이해합니다.", idea:"c4 폰은 무조건 희생하는 수라기보다 d5에 압박을 가하는 선택입니다. 중앙을 둘러싼 기물 배치가 중요합니다." },
-  { id:"ruy-lopez", name:"루이 로페즈", family:"오픈 게임", level:"중급", moves:["e2e4","e7e5","g1f3","b8c6","f1b5","a7a6","b5a4","g8f6"], lesson:["e4로 중앙을 차지합니다.","e5로 중앙에 맞섭니다.","나이트를 전개하고 e5를 공격합니다.","나이트를 전개해 e5를 방어합니다.","비숍을 b5로 전개해 c6 나이트를 압박합니다.","a6로 비숍에게 결정을 요구합니다.","비숍은 a4로 물러나 압박을 유지합니다.","흑은 나이트를 전개해 중앙을 공격합니다."], goal:"기물 압박과 템포, 비숍의 후퇴 개념을 익힙니다.", idea:"루이 로페즈는 e5 중앙 구조에 지속적인 압박을 가하는 대표적인 오픈 게임 오프닝입니다." }
-];
 
 const pieceSrc = piece => piece ? `${import.meta.env.BASE_URL}pieces/${piece.color}${piece.type.toUpperCase()}.png` : "";
 const uciFrom = move => `${move.from}${move.to}${move.promotion || ""}`;
