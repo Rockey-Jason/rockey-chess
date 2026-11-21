@@ -7,32 +7,32 @@ const quietPosition = { isAttacked: () => false };
 describe("chess move quality classification", () => {
   it("recognizes a unique best move as Great", () => {
     const move = { piece: "n", color: "w", to: "d5", san: "Nd5" };
-    expect(classifyMove(4, true, move, openPosition, quietPosition, {}, {}, { secondCpl: 104 }))
+    expect(classifyMove(4, true, move, openPosition, quietPosition, { secondCpl: 104 }))
       .toBe("great");
   });
 
   it("keeps a forcing sacrifice as Brilliant when alternatives are much worse", () => {
     const move = { piece: "n", captured: "p", color: "w", to: "f7", san: "Nxf7+" };
     const attackedPosition = { isAttacked: () => true };
-    expect(classifyMove(2, true, move, openPosition, attackedPosition, {}, {}, { secondCpl: 180 }))
+    expect(classifyMove(2, true, move, openPosition, attackedPosition, { secondCpl: 180 }))
       .toBe("brilliant");
   });
 
   it("does not award Great without a measured second candidate", () => {
     const move = { piece: "n", color: "w", to: "d5", san: "Nd5" };
-    expect(classifyMove(4, true, move, openPosition, quietPosition, {}, {}, { secondCpl: null }))
+    expect(classifyMove(4, true, move, openPosition, quietPosition, { secondCpl: null }))
       .toBe("best");
   });
 
   it("does not label a book move as Great", () => {
     const move = { piece: "n", color: "w", to: "d5", san: "Nd5" };
-    expect(classifyMove(4, true, move, openPosition, quietPosition, {}, {}, { book: true, secondCpl: 120 }))
+    expect(classifyMove(4, true, move, openPosition, quietPosition, { book: true, secondCpl: 120 }))
       .toBe("book");
   });
 
   it("recognizes large evaluation losses as blunders", () => {
     const move = { piece: "q", color: "w", to: "a4", san: "Qa4" };
-    expect(classifyMove(260, false, move, openPosition, quietPosition, {}, {}, {}))
+    expect(classifyMove(260, false, move, openPosition, quietPosition, {}))
       .toBe("blunder");
   });
 });
