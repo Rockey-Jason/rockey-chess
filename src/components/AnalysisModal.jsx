@@ -1,163 +1,503 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Chess } from "chess.js";
 import "../styles/feature.css";
 
-const labels = { brilliant:"Brilliant", great:"Great", best:"Best", excellent:"Excellent", good:"Good", inaccuracy:"Inaccuracy", mistake:"Mistake", blunder:"Blunder", miss:"Miss", book:"Book", forced:"Forced" };
-const descriptions = {
-  brilliant:"실전적으로 매우 어려운 희생·전환이면서 엔진상 큰 의미가 있는 수에만 부여됩니다.",
-  great:"최선에 가까우면서 포지션의 핵심을 정확히 이해한 수입니다.", best:"현재 포지션에서 엔진이 선택한 최선의 수입니다.", excellent:"최선과 매우 가까운 정확한 선택입니다.", good:"건전한 수지만 더 정확한 선택지가 있었습니다.", inaccuracy:"작은 평가 손실이 발생했습니다.", mistake:"명확한 평가 손실이 발생했습니다.", blunder:"큰 평가 손실을 만들어 포지션을 크게 악화시켰습니다.", miss:"상대에게 유리한 기회 또는 자신의 기회를 놓쳤습니다.", book:"검증된 오프닝 이론 데이터베이스에 포함된 수입니다.", forced:"실질적으로 선택지가 거의 하나인 강제 수입니다."
+const QUALITY_LABELS = {
+  brilliant: "최고의 수",
+  great: "훌륭한 수",
+  best: "최선",
+  excellent: "정확한 수",
+  good: "좋은 수",
+  inaccuracy: "부정확",
+  mistake: "실수",
+  blunder: "큰 실수",
+  miss: "기회 놓침",
+  book: "이론 수",
+  forced: "강제 수",
 };
-const files = ["a","b","c","d","e","f","g","h"];
 
-function positionAtPly(pgn, ply) {
-  const game = new Chess();
-  if (!pgn) return game;
+const QUALITY_DESCRIPTIONS = {
+  brilliant: "어려운 희생이나 전환을 정확하게 찾아낸 인상적인 수입니다.",
+  great: "포지션의 핵심을 잘 이해하고 최선에 가깝게 둔 수입니다.",
+  best: "이 포지션에서 엔진이 선택한 최선의 수입니다.",
+  excellent: "최선과 매우 가까운 정확한 선택입니다.",
+  good: "건전한 수입니다. 더 정밀한 선택지도 있었습니다.",
+  inaccuracy: "작은 평가 손실이 생겼습니다. 다음에는 더 나은 선택을 찾아보세요.",
+  mistake: "눈에 띄는 평가 손실이 발생한 수입니다.",
+  blunder: "포지션을 크게 악화시킨 수입니다. 놓친 전술을 살펴보세요.",
+  miss: "공격 기회나 중요한 대응 기회를 놓친 수입니다.",
+  book: "오프닝 이론 수순에 포함된 수입니다.",
+  forced: "실질적으로 선택지가 거의 하나였던 강제 수입니다.",
+};
+
+const CRITICAL_QUALITIES = new Set(["inaccuracy", "mistake", "blunder", "miss"]);
+const GOOD_QUALITIES = new Set(["brilliant", "great", "best", "excellent", "good"]);
+const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
+
+export function formatEvaluation(move) {
+  if (move?.mate && Number.isFinite(Number(move.mate.moves))) {
+    const sign = move.mate.winner === "black" ? "−" : "+";
+    return sign + "M" + Math.abs(Number(move.mate.moves));
+  }
+  const score = Number(move?.evaluation);
+  if (!Number.isFinite(score)) return "—";
+  return (score > 0 ? "+" : "") + score.toFixed(2);
+}
+
+export function filterAnalysisMoves(moves = [], filter = "all") {
+  return moves
+    .map((move, index) => ({ move, index }))
+    .filter(({ move }) => {
+      if (filter === "critical") return CRITICAL_QUALITIES.has(move.quality);
+      if (filter === "good") return GOOD_QUALITIES.has(move.quality);
+      return true;
+    });
+}
+
+function parseReview(pgn, ply) {
+  const fallback = new Chess();
+  if (!pgn) return { game: fallback, history: [], headers: {}, move: null, error: "" };
   try {
+    const game = new Chess();
     game.loadPgn(pgn);
-    const moves = game.history({ verbose: true });
-    const replay = new Chess();
-    moves.slice(0, ply).forEach(m => replay.move(m));
-    return replay;
-  } catch { return game; }
+    const history = game.history({ verbose: true });
+    const headers = game.getHeaders();
+    const targetPly = Math.max(0, Math.min(history.length, Number(ply) || 0));
+    for (let index = history.length; index > targetPly; index -= 1) game.undo();
+    return {
+      game,
+      history,
+      headers,
+      move: targetPly > 0 ? history[targetPly - 1] : null,
+      error: "",
+    };
+  } catch (error) {
+    return { game: fallback, history: [], headers: {}, move: null, error: error?.message || "기보를 읽지 못했습니다." };
+  }
 }
 
-function gameAtPly(pgn, ply) {
-  return positionAtPly(pgn, ply);
+function sanForUci(pgn, ply, uci) {
+  if (!pgn || !uci || String(uci).length < 4) return "—";
+  try {
+    const review = parseReview(pgn, Math.max(0, ply - 1));
+    const game = review.game;
+    const result = game.move({
+      from: String(uci).slice(0, 2),
+      to: String(uci).slice(2, 4),
+      ...(String(uci).length > 4 ? { promotion: String(uci)[4] } : {}),
+    });
+    return result?.san || String(uci);
+  } catch {
+    return String(uci);
+  }
 }
 
-function AnimatedMiniBoard({ pgn, ply }) {
-  const current = useMemo(() => gameAtPly(pgn, ply), [pgn, ply]);
-  const [moving, setMoving] = useState(null);
+function ReviewBoard({ review, ply }) {
+  const [phase, setPhase] = useState("start");
+  const move = review.move;
+  const board = review.game.board();
 
   useEffect(() => {
-    if (!ply || !pgn) {
-      setMoving(null);
-      return;
+    if (!move) {
+      setPhase("done");
+      return undefined;
     }
+    setPhase("start");
+    const frame = window.requestAnimationFrame(() => setPhase("move"));
+    const timer = window.setTimeout(() => setPhase("done"), 430);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [move?.from, move?.to, ply]);
 
-    try {
-      const temp = new Chess();
-      temp.loadPgn(pgn);
-      const history = temp.history({ verbose: true });
-      const move = history[ply - 1];
-      if (!move) {
-        setMoving(null);
-        return;
-      }
-
-      setMoving({
-        from: move.from,
-        to: move.to,
-        piece: move.piece,
-        color: move.color,
-        id: `${ply}-${move.from}-${move.to}`,
-        phase: "start"
-      });
-
-      const raf = requestAnimationFrame(() => {
-        setMoving(prev => prev ? { ...prev, phase: "move" } : prev);
-      });
-
-      const timer = window.setTimeout(() => setMoving(null), 430);
-      return () => {
-        cancelAnimationFrame(raf);
-        window.clearTimeout(timer);
-      };
-    } catch {
-      setMoving(null);
-    }
-  }, [pgn, ply]);
-
-  const cells = [];
-  for (let rank = 8; rank >= 1; rank--) {
-    for (let fi = 0; fi < 8; fi++) {
-      const square = files[fi] + rank;
-      const piece = current.get(square);
-      const light = (rank + fi) % 2 === 0;
-      const isAnimatedDestination = moving?.to === square && moving?.phase === "move";
-      const shouldHideDestinationPiece = moving?.to === square && moving?.phase !== null;
-
-      cells.push(
-        <div key={square} className={`reviewSquare ${light ? "light" : "dark"} ${isAnimatedDestination ? "reviewDestination" : ""}`}>
-          {piece && !shouldHideDestinationPiece && (
-            <img
-              className="reviewPiece"
-              src={`${import.meta.env.BASE_URL}pieces/${piece.color}${piece.type.toUpperCase()}.png`}
-              alt=""
-            />
-          )}
-        </div>
-      );
-    }
-  }
-
-  const fromFile = moving ? files.indexOf(moving.from[0]) : 0;
-  const fromRank = moving ? 8 - Number(moving.from[1]) : 0;
-  const toFile = moving ? files.indexOf(moving.to[0]) : 0;
-  const toRank = moving ? 8 - Number(moving.to[1]) : 0;
+  const fromFile = move ? FILES.indexOf(move.from[0]) : 0;
+  const fromRank = move ? 8 - Number(move.from[1]) : 0;
+  const toFile = move ? FILES.indexOf(move.to[0]) : 0;
+  const toRank = move ? 8 - Number(move.to[1]) : 0;
 
   return (
-    <div className="reviewBoard">
-      {cells}
-      {moving && (
-        <img
-          key={moving.id}
-          className={`reviewMovingPiece phase-${moving.phase}`}
-          src={`${import.meta.env.BASE_URL}pieces/${moving.color}${moving.piece.toUpperCase()}.png`}
-          alt=""
-          style={{
-            "--from-x": fromFile,
-            "--from-y": fromRank,
-            "--to-x": toFile,
-            "--to-y": toRank
-          }}
-        />
-      )}
+    <div className="studioBoardFrame">
+      <div className="studioBoard" role="img" aria-label={ply ? (ply + "번째 수 이후 체스판") : "시작 포지션"}>
+        {board.map((rank, row) => rank.map((piece, col) => {
+          const square = FILES[col] + (8 - row);
+          const light = (row + col) % 2 === 0;
+          const isFrom = move?.from === square;
+          const isTo = move?.to === square;
+          const hideDestination = move && isTo && phase !== "done";
+          return (
+            <div key={square} className={"studioSquare " + (light ? "light" : "dark") + (isFrom || isTo ? " moveHighlight" : "")}>
+              {piece && !hideDestination && (
+                <img
+                  className="studioPiece"
+                  src={import.meta.env.BASE_URL + "pieces/" + piece.color + piece.type.toUpperCase() + ".png"}
+                  alt=""
+                />
+              )}
+              {col === 0 && <span className="studioRank">{8 - row}</span>}
+              {row === 7 && <span className="studioFile">{FILES[col]}</span>}
+            </div>
+          );
+        }))}
+        {move && phase !== "done" && (
+          <img
+            key={ply + "-" + move.from + "-" + move.to}
+            className={"studioMovingPiece " + (phase === "move" ? "moving" : "")}
+            src={import.meta.env.BASE_URL + "pieces/" + move.color + move.piece.toUpperCase() + ".png"}
+            alt=""
+            style={{
+              "--from-x": fromFile,
+              "--from-y": fromRank,
+              "--to-x": toFile,
+              "--to-y": toRank,
+            }}
+          />
+        )}
+      </div>
+      <div className="studioBoardCaption">
+        <span>{review.headers?.White || "백"} · 백</span>
+        <span className="studioBoardDot">●</span>
+        <span>{review.headers?.Black || "흑"} · 흑</span>
+        <span className="studioBoardPly">{ply ? "MOVE " + Math.ceil(ply / 2) : "START POSITION"}</span>
+      </div>
     </div>
   );
 }
 
-export default function AnalysisModal({ open, onClose, moves = [], pgn = "", accuracy = 0, loading = false }) {
-  const [selected, setSelected] = useState(Math.max(0, moves.length - 1));
-  useEffect(() => { setSelected(Math.max(0, moves.length - 1)); }, [moves.length]);
-  const active = moves[selected] || null;
-  const counts = useMemo(() => moves.reduce((a,m)=>{a[m.quality]=(a[m.quality]||0)+1;return a},{}), [moves]);
-  if (!open) return null;
-  return createPortal(<div className="analysisBackdrop">
-    <div className="analysisShell">
-      <header className="analysisTop">
-        <div><div className="analysisKicker">ROCKEY CHESS · GAME REVIEW</div><h2>게임 분석</h2><p>게임이 끝난 뒤에만 엔진 평가가 공개됩니다.</p></div>
-        <button className="closeButton" onClick={onClose}>닫기</button>
-      </header>
-      <div className="analysisOverview">
-        <div className="accuracyHero"><span>PLAYER ACCURACY</span><strong>{accuracy}%</strong></div>
-        <div className="analysisCounts">{Object.entries(counts).map(([k,v])=><span key={k} className={`analysisPill quality-${k}`}>{labels[k]||k} <b>{v}</b></span>)}</div>
+function EvaluationTimeline({ moves, selected, onSelect }) {
+  if (!moves.length) return null;
+  const width = 1000;
+  const height = 112;
+  const left = 12;
+  const right = width - 12;
+  const top = 10;
+  const bottom = height - 12;
+  const span = Math.max(1, moves.length - 1);
+  const yFor = (move) => {
+    let value = Number(move?.evaluation);
+    if (move?.mate) value = move.mate.winner === "black" ? -9 : 9;
+    if (!Number.isFinite(value)) value = 0;
+    const clamped = Math.max(-8, Math.min(8, value));
+    return top + ((8 - clamped) / 16) * (bottom - top);
+  };
+  const xFor = (index) => left + (index / span) * (right - left);
+  const points = moves.map((move, index) => xFor(index) + "," + yFor(move)).join(" ");
+  const active = moves[selected] || moves[0];
+  const activeX = xFor(selected);
+  const activeY = yFor(active);
+
+  return (
+    <div className="studioTimeline">
+      <div className="studioTimelineLegend">
+        <span>백 우세 <b>+8</b></span>
+        <span>균형 <b>0</b></span>
+        <span>흑 우세 <b>−8</b></span>
       </div>
-      {loading ? <div className="analysisLoading"><div className="loadingOrb"/><h3>모든 수를 다시 계산하는 중…</h3><p>Stockfish 18이 각 포지션의 최선수와 실제 수의 차이를 비교하고 있습니다.</p></div> :
-      <div className="analysisLayout">
-        <section className="analysisMoves">
-          <div className="analysisSectionTitle">수별 평가 · 클릭해서 포지션 보기</div>
-          {moves.length === 0 ? <div className="emptyAnalysis">분석할 기보가 없습니다.</div> : moves.map((m,i)=><button key={`${m.uci}-${i}`} style={{"--row-index": i}} className={`analysisMoveRow ${selected===i?"active":""}`} onClick={()=>setSelected(i)}>
-            <span className="moveIndex">{Math.ceil(m.ply/2)}{m.side==="bot"?"…":"."}</span><b>{m.san}</b><span className={`analysisQuality quality-${m.quality}`}>{labels[m.quality]||m.quality}</span><span className="moveCpl">{Number(m.evaluation||0)>0?"+":""}{Number(m.evaluation||0).toFixed(2)}</span>
-          </button>)}
-        </section>
-        <section className="analysisDetail">
-          {active ? <>
-            <div key={`visual-${selected}-${active.uci || active.san}`} className="reviewVisual">
-              <AnimatedMiniBoard pgn={pgn} ply={active.ply || 0}/>
-              <div className="reviewEval"><span>ENGINE EVALUATION</span><strong>{Number(active.evaluation||0)>0?"+":""}{Number(active.evaluation||0).toFixed(2)}</strong><small>{active.cpl} CPL</small></div>
-            </div>
-            <div key={`detail-${selected}-${active.uci || active.san}`} className="analysisDetailContent">
-              <div className={`detailBadge quality-${active.quality}`}>{labels[active.quality]||active.quality}</div>
-              <h3>{active.san}</h3><p>{descriptions[active.quality]||"엔진 분석 결과입니다."}</p>
-              <div className="detailGrid"><div><span>정확도</span><b>{active.accuracy}%</b></div><div><span>CPL</span><b>{active.cpl}</b></div><div><span>최선수</span><b>{active.bestMove||"—"}</b></div><div><span>분류</span><b>{labels[active.quality]||active.quality}</b></div></div>
-              <div className="reviewPager"><button disabled={selected<=0} onClick={()=>setSelected(v=>Math.max(0,v-1))}>← 이전 수</button><span>{selected+1} / {moves.length}</span><button disabled={selected>=moves.length-1} onClick={()=>setSelected(v=>Math.min(moves.length-1,v+1))}>다음 수 →</button></div>
-            </div>
-          </> : <p className="analysisNoSelection">선택할 수가 없습니다.</p>}
-        </section>
-      </div>}
-      <details className="pgnDetails"><summary>PGN 보기</summary><pre>{pgn||"PGN 없음"}</pre></details>
+      <svg className="studioEvalGraph" viewBox={"0 0 " + width + " " + height} preserveAspectRatio="none" role="img" aria-label="경기 전체의 평가 변화 그래프">
+        <line x1={left} y1={top} x2={right} y2={top} className="graphGridLine" />
+        <line x1={left} y1={(top + bottom) / 2} x2={right} y2={(top + bottom) / 2} className="graphZeroLine" />
+        <line x1={left} y1={bottom} x2={right} y2={bottom} className="graphGridLine" />
+        <polyline points={points} className="graphLine" />
+        <line x1={activeX} y1={top} x2={activeX} y2={bottom} className="graphCursor" />
+        <circle cx={activeX} cy={activeY} r="7" className="graphActivePoint" />
+      </svg>
+      <input
+        className="studioTimelineRange"
+        type="range"
+        min="0"
+        max={Math.max(0, moves.length - 1)}
+        value={selected}
+        onChange={(event) => onSelect(Number(event.target.value))}
+        disabled={moves.length < 2}
+        aria-label="기보 수순 이동"
+      />
+      <div className="studioTimelineEnds"><span>경기 시작</span><span>{moves.length} ply</span><span>경기 종료</span></div>
     </div>
-  </div>, document.body);
+  );
+}
+
+export default function AnalysisModal({
+  open,
+  onClose,
+  onRetry,
+  moves = [],
+  pgn = "",
+  accuracy = 0,
+  loading = false,
+  error = "",
+  progress = { completed: 0, total: 0, currentMove: 0, percent: 0 },
+}) {
+  const [selected, setSelected] = useState(Math.max(0, moves.length - 1));
+  const [filter, setFilter] = useState("all");
+  const [copyMessage, setCopyMessage] = useState("");
+  const closeRef = useRef(null);
+  const selectedRowRef = useRef(null);
+  const previousFocusRef = useRef(null);
+
+  useEffect(() => {
+    setSelected(Math.max(0, moves.length - 1));
+    setFilter("all");
+  }, [pgn, moves.length]);
+
+  const visibleMoves = useMemo(() => filterAnalysisMoves(moves, filter), [moves, filter]);
+  const active = moves[selected] || null;
+  const activePly = active?.ply || 0;
+  const review = useMemo(() => parseReview(pgn, activePly), [pgn, activePly]);
+  const suggestedSan = useMemo(() => active ? sanForUci(pgn, active.ply || 0, active.bestMove) : "—", [active, pgn]);
+  const counts = useMemo(() => moves.reduce((result, move) => {
+    result[move.quality] = (result[move.quality] || 0) + 1;
+    return result;
+  }, {}), [moves]);
+  const criticalCount = moves.filter((move) => CRITICAL_QUALITIES.has(move.quality)).length;
+  const averageCpl = moves.length
+    ? Math.round(moves.reduce((sum, move) => sum + (Number(move.cpl) || 0), 0) / moves.length)
+    : 0;
+  const safeAccuracy = Number.isFinite(Number(accuracy)) ? Math.max(0, Math.min(100, Number(accuracy))) : 0;
+
+  const goTo = useCallback((index) => {
+    if (!moves.length) return;
+    setSelected(Math.max(0, Math.min(moves.length - 1, index)));
+  }, [moves.length]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    previousFocusRef.current = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusTimer = window.setTimeout(() => closeRef.current?.focus(), 0);
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose?.();
+        return;
+      }
+      const target = event.target;
+      const isInteractive = target instanceof HTMLElement &&
+        (target.matches("input, button, textarea, select, summary, a") || target.isContentEditable);
+      if (isInteractive || loading || !moves.length) return;
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        goTo(selected - 1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        goTo(selected + 1);
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        goTo(0);
+      } else if (event.key === "End") {
+        event.preventDefault();
+        goTo(moves.length - 1);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previousFocusRef.current instanceof HTMLElement) previousFocusRef.current.focus();
+    };
+  }, [open, onClose, goTo, selected, moves.length, loading]);
+
+  useEffect(() => {
+    selectedRowRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, [selected, filter, open]);
+
+  const copyPgn = async () => {
+    if (!pgn) {
+      setCopyMessage("복사할 기보가 없습니다.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(pgn);
+      setCopyMessage("PGN을 복사했습니다.");
+    } catch {
+      setCopyMessage("클립보드 접근이 차단되었습니다. PGN 텍스트를 직접 선택해 복사해 주세요.");
+    }
+  };
+
+  const downloadPgn = () => {
+    if (!pgn) return;
+    const blob = new Blob([pgn], { type: "application/x-chess-pgn;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "dori-chess-review.pgn";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      className="analysisBackdrop analysisStudioBackdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose?.();
+      }}
+    >
+      <section className="analysisStudio" role="dialog" aria-modal="true" aria-labelledby="analysis-studio-title">
+        <header className="studioHeader">
+          <div className="studioBrand">
+            <div className="studioBrandMark">♞</div>
+            <div>
+              <span className="studioEyebrow">DORI CHESS · STOCKFISH 18 REVIEW</span>
+              <h2 id="analysis-studio-title">경기 분석실</h2>
+              <p>수순을 이동하며 평가 변화와 중요한 순간을 한 화면에서 확인하세요.</p>
+            </div>
+          </div>
+          <button ref={closeRef} className="studioClose" onClick={onClose} aria-label="분석실 닫기">
+            <span aria-hidden="true">×</span><small>닫기</small>
+          </button>
+        </header>
+
+        <div className="studioSummary">
+          <div className="studioSummaryCard studioAccuracyCard">
+            <span>나의 정확도</span>
+            <strong>{safeAccuracy.toFixed(1)}<small>%</small></strong>
+            <i style={{ "--accuracy": safeAccuracy + "%" }} />
+          </div>
+          <div className="studioSummaryCard">
+            <span>분석한 수</span>
+            <strong>{moves.length}<small> ply</small></strong>
+          </div>
+          <div className="studioSummaryCard">
+            <span>주의할 수</span>
+            <strong className={criticalCount ? "studioWarningValue" : ""}>{criticalCount}<small> 개</small></strong>
+          </div>
+          <div className="studioSummaryCard">
+            <span>평균 CPL</span>
+            <strong>{averageCpl}<small> cp</small></strong>
+          </div>
+          <div className="studioQualitySummary" aria-label="수 분류 통계">
+            {["brilliant", "best", "good", "inaccuracy", "mistake", "blunder"].map((quality) => (
+              <span key={quality} className={"studioQualityCount quality-" + quality} title={QUALITY_LABELS[quality]}>
+                <b>{counts[quality] || 0}</b><small>{QUALITY_LABELS[quality]}</small>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {loading && (
+          <div className="studioProgress" role="status" aria-live="polite">
+            <div className="studioProgressTop">
+              <div><b>Stockfish가 경기를 분석하고 있어요</b><span>{progress.currentMove ? progress.currentMove + "수째 분석 중" : "포지션을 준비하고 있습니다"}</span></div>
+              <strong>{Math.round(Number(progress.percent) || 0)}%</strong>
+            </div>
+            <div className="studioProgressTrack"><i style={{ width: Math.max(0, Math.min(100, Number(progress.percent) || 0)) + "%" }} /></div>
+            <small>{progress.completed || 0} / {progress.total || moves.length || "—"} 수 분석 완료 · 창을 닫아도 분석은 계속 진행됩니다.</small>
+          </div>
+        )}
+
+        {error && !loading && (
+          <div className="studioError" role="alert">
+            <div><b>분석을 완료하지 못했어요.</b><p>{error}</p></div>
+            <button onClick={onRetry}>다시 분석</button>
+          </div>
+        )}
+
+        {!loading && !error && moves.length > 0 && (
+          <EvaluationTimeline moves={moves} selected={selected} onSelect={goTo} />
+        )}
+
+        {loading && moves.length === 0 ? (
+          <div className="studioLoadingState">
+            <div className="studioLoadingOrb" />
+            <h3>경기 전체를 살펴보는 중</h3>
+            <p>기물의 위치와 각 수의 선택지를 비교하고 있습니다.</p>
+          </div>
+        ) : !loading && !error && moves.length === 0 ? (
+          <div className="studioEmpty">
+            <span>♟</span><h3>분석할 수가 없습니다.</h3><p>이번 경기의 기보가 비어 있거나 저장되지 않았습니다.</p>
+          </div>
+        ) : !loading && !error && active ? (
+          <div className="studioWorkspace">
+            <section className="studioMovePanel" aria-label="수순 목록">
+              <div className="studioPanelHeader">
+                <div><span>MOVE EXPLORER</span><h3>전체 수순</h3></div>
+                <b>{moves.length} ply</b>
+              </div>
+              <div className="studioMoveFilters" role="group" aria-label="수순 필터">
+                <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>전체 <b>{moves.length}</b></button>
+                <button className={filter === "critical" ? "active" : ""} onClick={() => setFilter("critical")}>주의 <b>{criticalCount}</b></button>
+                <button className={filter === "good" ? "active" : ""} onClick={() => setFilter("good")}>좋은 수 <b>{moves.filter((move) => GOOD_QUALITIES.has(move.quality)).length}</b></button>
+              </div>
+              <div className="studioMoveList" role="list">
+                {visibleMoves.length ? visibleMoves.map(({ move, index }) => (
+                  <button
+                    key={(move.uci || move.san || "move") + "-" + index}
+                    ref={index === selected ? selectedRowRef : null}
+                    className={"studioMoveRow " + (index === selected ? "active" : "") + (CRITICAL_QUALITIES.has(move.quality) ? " critical" : "")}
+                    onClick={() => goTo(index)}
+                    aria-pressed={index === selected}
+                    role="listitem"
+                  >
+                    <span className="studioMoveNo">{Math.ceil((move.ply || index + 1) / 2)}{move.side === "bot" ? "…" : "."}</span>
+                    <b className="studioMoveSan">{move.san || "—"}</b>
+                    <span className={"studioMoveQuality quality-" + move.quality}>{QUALITY_LABELS[move.quality] || move.quality || "분석"}</span>
+                    <span className="studioMoveEval">{formatEvaluation(move)}</span>
+                  </button>
+                )) : (
+                  <div className="studioNoFilteredMoves">이 필터에 해당하는 수가 없습니다.</div>
+                )}
+              </div>
+              <div className="studioMoveListHint">수순을 선택하거나 좌우 방향키로 이동할 수 있어요.</div>
+            </section>
+
+            <section className="studioDetailPanel" aria-label="선택한 수 분석">
+              <div className="studioDetailTop">
+                <div><span>POSITION REVIEW · {Math.ceil(activePly / 2)}번째 수</span><h3>{active.san || "—"}</h3></div>
+                <span className={"studioClassification quality-" + active.quality}>{QUALITY_LABELS[active.quality] || active.quality || "분석 완료"}</span>
+              </div>
+
+              <div className="studioReviewGrid">
+                <ReviewBoard review={review} ply={activePly} />
+                <div className="studioEvaluationCard">
+                  <span>현재 평가 · 백 기준</span>
+                  <strong className={(active.mate ? active.mate.winner === "black" : Number(active.evaluation) < 0) ? "blackAdvantage" : "whiteAdvantage"}>{formatEvaluation(active)}</strong>
+                  <div className="studioEvalMeter" aria-label="백과 흑의 평가 균형">
+                    <i style={{ "--eval-position": (50 + Math.max(-8, Math.min(8, Number(active.evaluation) || 0)) / 16 * 100) + "%" }} />
+                  </div>
+                  <div className="studioEvalMeta"><span>{active.mate ? "체크메이트까지 " + active.mate.moves + "수" : "평가 손실"}</span><b>{Number(active.cpl || 0).toFixed(0)} CPL</b></div>
+                  <div className="studioEvalMeta"><span>수 정확도</span><b>{Number(active.accuracy || 0).toFixed(1)}%</b></div>
+                </div>
+              </div>
+
+              <div className="studioExplanation">
+                <div className="studioExplanationHeading"><span>MOVE INSIGHT</span><small>{active.side === "bot" ? "흑의 수" : "백의 수"}</small></div>
+                <p>{QUALITY_DESCRIPTIONS[active.quality] || "엔진이 계산한 포지션 평가입니다."}</p>
+                <div className="studioBestMove"><span>엔진 추천 수</span><b>{suggestedSan}</b><code>{active.bestMove || "—"}</code></div>
+              </div>
+
+              <div className="studioNavigation">
+                <button onClick={() => goTo(0)} disabled={selected === 0} aria-label="첫 수">⇤<small>처음</small></button>
+                <button onClick={() => goTo(selected - 1)} disabled={selected === 0} aria-label="이전 수">←<small>이전 수</small></button>
+                <div className="studioCurrentPly"><b>{selected + 1}</b><span>/ {moves.length}</span></div>
+                <button onClick={() => goTo(selected + 1)} disabled={selected >= moves.length - 1} aria-label="다음 수">→<small>다음 수</small></button>
+                <button onClick={() => goTo(moves.length - 1)} disabled={selected >= moves.length - 1} aria-label="마지막 수">⇥<small>마지막</small></button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
+        <details className="studioPgn">
+          <summary><span>기보 원문 보기</span><small>PGN · 클릭하여 펼치기</small></summary>
+          <div className="studioPgnActions">
+            <button onClick={copyPgn} disabled={!pgn}>기보 복사</button>
+            <button onClick={downloadPgn} disabled={!pgn}>PGN 다운로드</button>
+            {copyMessage && <span role="status">{copyMessage}</span>}
+          </div>
+          <pre>{pgn || "PGN 데이터가 없습니다."}</pre>
+        </details>
+
+        <footer className="studioFooter">
+          <span>평가 그래프는 백 기준입니다. 위쪽은 백 우세, 아래쪽은 흑 우세를 뜻합니다.</span>
+          <span>단축키: ← 이전 · → 다음 · Home 처음 · End 마지막 · Esc 닫기</span>
+        </footer>
+      </section>
+    </div>,
+    document.body
+  );
 }
