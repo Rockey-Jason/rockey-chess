@@ -64,6 +64,8 @@ export default function Sidebar({ chess = {} }) {
         analysisOpen = false,
         setAnalysisOpen = () => {},
         analysisBusy = false,
+        analysisError = "",
+        analysisProgress = { completed: 0, total: 0, currentMove: 0, percent: 0 },
         analysisReady = false,
         doldolcoin = 0,
         rockKingCoin = 0
@@ -239,7 +241,17 @@ export default function Sidebar({ chess = {} }) {
                 </div>
             )}
             <div className="coinMini">🪙 {Number(rockKingCoin).toLocaleString()} ROCK-KING-COIN</div>
-            <AnalysisModal open={analysisOpen} onClose={()=>setAnalysisOpen(false)} moves={analysisMoves} pgn={gameSummary?.pgn} accuracy={accuracy} loading={analysisBusy}/>
+            <AnalysisModal
+                open={analysisOpen}
+                onClose={() => setAnalysisOpen(false)}
+                onRetry={openAnalysis}
+                moves={analysisMoves}
+                pgn={gameSummary?.pgn}
+                accuracy={accuracy}
+                loading={analysisBusy}
+                error={analysisError}
+                progress={analysisProgress}
+            />
         </aside>
     );
 }
