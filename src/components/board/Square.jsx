@@ -14,7 +14,8 @@ function Square({
     highlight,
     selected,
     lastMove,
-    check
+    check,
+    coordinate
 }) {
     return (
         <div
@@ -35,6 +36,13 @@ function Square({
             onDrop={onDrop}
         >
             {children}
+
+            {coordinate?.[0] === "a" && (
+                <span className="coordinateRank" aria-hidden="true">{coordinate[1]}</span>
+            )}
+            {coordinate?.[1] === "1" && (
+                <span className="coordinateFile" aria-hidden="true">{coordinate[0]}</span>
+            )}
 
             {highlight && (
                 <div className="highlight" />

@@ -4,6 +4,8 @@ import Login from "./pages/Login.jsx";
 import Shop from "./pages/Shop.jsx";
 import Customize from "./pages/Customize.jsx";
 import PvP from "./pages/PvP.jsx";
+import ChessStats from "./pages/ChessStats.jsx";
+import OpeningStudy from "./pages/OpeningStudy.jsx";
 import SiteSidebar from "./components/layout/SiteSidebar.jsx";
 import "./AppShell.css";
 
@@ -41,6 +43,8 @@ export default function App() {
         <Route path="/shop" element={<Shop />} />
         <Route path="/customize" element={<Customize />} />
         <Route path="/pvp" element={<PvP />} />
+        <Route path="/openings" element={<OpeningStudy />} />
+        <Route path="/stats" element={<ChessStats />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Shell>

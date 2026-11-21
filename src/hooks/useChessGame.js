@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Chess } from "chess.js";
+import { playChessAudio } from "./chessAudio";
 import { supabase } from "../supabase";
 import StockfishEngine from "../ai/StockfishEngine";
 import { requestMove } from "./EngineController";
@@ -421,16 +422,31 @@ const say = useCallback(
     setTurn(game.turn());
   }, [game]);
 
-  const playSound = useCallback(name => {
+  const soundThemeRef = useRef("default");
+
+  const playSound = useCallback((name, piece = "p") => {
+    const isPieceSound = ["move", "capture", "castle"].includes(name);
+    const usesWoodPack = soundThemeRef.current === "sound_classic";
+
+    // 기본 대국은 저장소의 실제 효과음을 사용하고,
+    // 상점 사운드 팩을 장착하면 기물별 나무 타격음으로 전환한다.
+    if (name === "click") {
+      playChessAudio("select", piece, soundThemeRef.current);
+      return;
+    }
+    if (name === "promotion" || name === "check" || (usesWoodPack && isPieceSound)) {
+      if (playChessAudio(name, piece, soundThemeRef.current)) return;
+    }
+
     try {
-      const a = new Audio(
-        `${import.meta.env.BASE_URL}sounds/${name}.mp3`
-      );
-
-      a.volume = 0.65;
-
-      a.play().catch(() => {});
-    } catch {}
+      const audio = new Audio(`${import.meta.env.BASE_URL}sounds/${name}.mp3`);
+      audio.volume = 0.58;
+      audio.play().catch(() => {
+        if (isPieceSound) playChessAudio(name, piece, soundThemeRef.current);
+      });
+    } catch {
+      if (isPieceSound) playChessAudio(name, piece, soundThemeRef.current);
+    }
   }, []);
 
   /*
@@ -446,8 +462,16 @@ const say = useCallback(
       new StockfishEngine();
 
     const loadRating = async () => {
-      const { profile } = await getLoginIdAndProfile();
+      const { user, profile } = await getLoginIdAndProfile();
       if (!mountedRef.current) return;
+      if (user) {
+        const { data: customizationData } = await supabase
+          .from("user_customization")
+          .select("customization")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        soundThemeRef.current = customizationData?.customization?.sound || "default";
+      }
       const r = Number(profile.chess_rating);
       if (Number.isFinite(r)) setRating(r);
       if (Number.isFinite(Number(profile.doldolcoin))) setDoldolcoin(Number(profile.doldolcoin));
@@ -945,43 +969,58 @@ const say = useCallback(
 
   const checkChessAchievements = useCallback(async (finalResult) => {
     await claimAchievement("first_chess");
-    if (finalResult !== "1-0") return;
 
-    // Supabase에 등록된 봇별 첫 승리 업적을 실제 승리 조건과 연결한다.
-    // claim_achievement()가 이미 획득한 업적을 원자적으로 차단하므로
-    // 같은 봇을 여러 번 이겨도 보상/팝업은 최초 1회만 발생한다.
-    const botWinAchievements = {
-      talc: "chess_win_talc",
-      sleep: "chess_win_sleeping",
-      fur: "chess_win_fur",
-      rockey: "chess_win_rockey",
-      army: "chess_win_army",
-      doronum: "chess_win_doronum",
-      brilliant: "chess_win_brilliant"
-    };
-
-    const botAchievementId = botWinAchievements[currentBot];
-    if (botAchievementId) {
-      await claimAchievement(botAchievementId);
+    // Bot-specific first-win achievements remain limited to the selected AI.
+    if (finalResult === "1-0") {
+      const botWinAchievements = {
+        talc: "chess_win_talc",
+        sleep: "chess_win_sleeping",
+        fur: "chess_win_fur",
+        rockey: "chess_win_rockey",
+        army: "chess_win_army",
+        doronum: "chess_win_doronum",
+        brilliant: "chess_win_brilliant"
+      };
+      const botAchievementId = botWinAchievements[currentBot];
+      if (botAchievementId) await claimAchievement(botAchievementId);
     }
 
     const { user } = await getLoginIdAndProfile();
     if (!user) return;
 
-    const { count, error } = await supabase
-      .from("chess_games")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("mode", "bot")
-      .eq("result", "1-0");
+    const [{ count: totalGames, error: totalError }, { count: totalWins, error: winsError }] = await Promise.all([
+      supabase.from("chess_games").select("id", { count: "exact", head: true }).eq("user_id", user.id).in("result", ["1-0", "0-1", "1/2-1/2"]),
+      supabase.from("chess_games").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("result", "1-0")
+    ]);
 
-    if (error) {
-      console.warn("Chess win count failed:", error);
+    if (totalError || winsError) {
+      console.warn("Chess achievement progress lookup failed:", totalError || winsError);
       return;
     }
 
-    if (count >= 10) await claimAchievement("chess_10_win");
-    if (count >= 100) await claimAchievement("chess_100_win");
+    const completed = Number(totalGames || 0);
+    const wins = Number(totalWins || 0);
+    const winMilestones = [
+      [5, "chess_5_win"],
+      [10, "chess_10_win"],
+      [25, "chess_25_win"],
+      [50, "chess_50_win"],
+      [100, "chess_100_win"],
+      [250, "chess_250_win"],
+      [500, "chess_500_win"],
+      [1000, "chess_1000_win"]
+    ];
+    const gameMilestones = [
+      [100, "chess_play_100"],
+      [500, "chess_play_500"]
+    ];
+
+    for (const [target, achievementId] of winMilestones) {
+      if (wins >= target) await claimAchievement(achievementId);
+    }
+    for (const [target, achievementId] of gameMilestones) {
+      if (completed >= target) await claimAchievement(achievementId);
+    }
   }, [claimAchievement, currentBot]);
 
   const saveCompletedGame = useCallback(async (summary, finalResult) => {
@@ -1219,10 +1258,12 @@ const say = useCallback(
       playSound(
         move.captured
           ? "capture"
-          : move.isKingsideCastle() ||
-              move.isQueensideCastle()
+          : move.isKingsideCastle() || move.isQueensideCastle()
             ? "castle"
-            : "move"
+            : move.promotion
+              ? "promotion"
+              : "move",
+        move.promotion || move.piece
       );
 
       setPromotionData(null);
@@ -1237,6 +1278,7 @@ const say = useCallback(
        * 플레이어가 체크를 했다면
        */
       if (game.isCheck()) {
+        playSound("check", move.promotion || move.piece);
         say("check", currentBot, {
           force: true
         });
@@ -1374,6 +1416,7 @@ const say = useCallback(
            * AI가 체크
            */
           if (game.isCheck()) {
+            playSound("check", aiMove.promotion || aiMove.piece);
             say(
               "check",
               currentBot,
@@ -1396,10 +1439,12 @@ const say = useCallback(
           playSound(
             aiMove.captured
               ? "capture"
-              : aiMove.isKingsideCastle() ||
-                  aiMove.isQueensideCastle()
+              : aiMove.isKingsideCastle() || aiMove.isQueensideCastle()
                 ? "castle"
-                : "move"
+                : aiMove.promotion
+                  ? "promotion"
+                  : "move",
+            aiMove.promotion || aiMove.piece
           );
 
           // 봇의 수 역시 동일한 기준으로 분석하여
