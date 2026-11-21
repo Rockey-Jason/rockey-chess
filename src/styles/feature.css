@@ -610,3 +610,51 @@
   .studioQualityShowcase,.studioQualityAura,.studioQualityShockwave,.studioQualitySpark,.studioQualityShowcaseLabel{animation:none!important;opacity:.35!important}
   .studioQualityShowcaseLabel{opacity:1!important}
 }
+
+
+/* Responsive review board and full-game move evaluation overlay */
+.studioDetailPanel{overflow:visible}
+.studioReviewGrid{grid-template-columns:minmax(0,1.2fr) minmax(170px,.8fr);align-items:start;min-width:0}
+.studioBoardFrame{display:flex;flex-direction:column;align-items:center;width:100%;max-width:520px;min-width:0;justify-self:center;overflow:visible}
+.studioBoard{width:min(100%,480px);max-width:100%;min-width:0;height:auto;aspect-ratio:1;box-sizing:border-box;flex:0 0 auto}
+.studioBoardRoutes{position:absolute;inset:0;z-index:4;width:100%;height:100%;overflow:visible;pointer-events:none}
+.studioRoutePath{fill:none;stroke:var(--route-color);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;opacity:.48;pointer-events:stroke;cursor:pointer;transition:opacity .18s,stroke-width .18s,filter .18s}
+.studioRoutePath:hover,.studioRoutePath.active{stroke-width:9;opacity:1;filter:drop-shadow(0 0 5px var(--route-color))}
+.studioOriginMarker{position:absolute;z-index:6;display:grid;place-items:center;min-width:13px;height:13px;padding:0 2px;border:1px solid rgba(255,255,255,.8);border-radius:5px;background:rgba(5,13,23,.82);color:#fff;font-size:7px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.38);transform:translate(-15%,-50%)}
+.studioOriginMarker.active{border-color:#ffe39b;background:#5d4825;color:#ffe7ae;box-shadow:0 0 9px rgba(255,222,145,.75)}
+.studioDestinationBadge{position:absolute;z-index:7;display:grid!important;place-items:center!important;grid-template-columns:1fr!important;gap:0!important;width:23px!important;height:23px!important;min-width:23px!important;min-height:23px!important;padding:0!important;margin:0!important;border:1.5px solid currentColor!important;border-radius:7px!important;background:rgba(8,18,30,.94)!important;color:var(--route-color)!important;box-shadow:0 2px 7px rgba(0,0,0,.55),0 0 9px color-mix(in srgb,var(--route-color) 36%,transparent)!important;cursor:pointer;transform:translate(calc(-50% - var(--destination-stack)*5px),-50%);transition:transform .16s,box-shadow .16s,filter .16s!important}
+.studioDestinationBadge b{font-size:13px;line-height:1;font-weight:950}
+.studioDestinationBadge small{position:absolute;right:-4px;bottom:-5px;display:grid;place-items:center;min-width:10px;height:10px;padding:0 2px;border:1px solid rgba(255,255,255,.4);border-radius:5px;background:#101c2d;color:#fff;font-size:6px;font-weight:850;line-height:1}
+.studioDestinationBadge:hover,.studioDestinationBadge.active{z-index:9!important;filter:brightness(1.35);transform:translate(calc(-50% - var(--destination-stack)*5px),-50%) scale(1.16)!important;box-shadow:0 0 0 2px rgba(255,255,255,.72),0 0 15px currentColor!important}
+.studioDestinationBadge:focus-visible{outline:2px solid #fff1c8;outline-offset:2px}
+.studioBoardRouteGuide{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 9px;width:100%;padding:9px 4px 3px;color:#8fa2bc;text-align:center;font-size:8px;line-height:1.45}
+.studioRouteGuideTitle{color:#e6cc94;font-weight:900;letter-spacing:.08em}
+.studioRouteLegend{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;width:100%;padding:5px 0 2px}
+.studioRouteLegendItem{display:inline-flex;align-items:center;gap:4px;padding:4px 6px;border:1px solid rgba(178,199,229,.11);border-radius:7px;background:rgba(255,255,255,.025);white-space:nowrap}
+.studioRouteLegendItem b{display:grid;place-items:center;width:14px;height:14px;border:1px solid currentColor;border-radius:4px;font-size:10px;line-height:1}
+.studioRouteLegendItem small{color:#a9b8ca;font-size:8px}
+.studioEvaluationCard{width:100%;min-width:0;align-self:stretch}
+@media(max-width:1120px){
+  .studioReviewGrid{grid-template-columns:minmax(0,1fr);justify-items:center}
+  .studioBoardFrame{max-width:500px}
+  .studioEvaluationCard{width:min(100%,500px)}
+}
+@media(max-width:880px){
+  .studioReviewGrid{grid-template-columns:minmax(0,1fr);gap:11px}
+  .studioBoardFrame{width:100%;max-width:500px}
+  .studioBoard{width:min(100%,480px)}
+}
+@media(max-width:600px){
+  .studioBoardFrame{width:100%;max-width:390px}
+  .studioBoard{width:100%;max-width:390px;border-width:6px;border-radius:10px}
+  .studioOriginMarker{min-width:11px;height:11px;border-radius:4px;font-size:6px}
+  .studioDestinationBadge{width:20px!important;height:20px!important;min-width:20px!important;min-height:20px!important;border-radius:6px!important}
+  .studioDestinationBadge b{font-size:11px}
+  .studioDestinationBadge small{min-width:9px;height:9px;font-size:5px}
+  .studioRouteLegend{gap:3px}
+  .studioRouteLegendItem{padding:3px 4px;gap:3px}
+  .studioRouteLegendItem small{font-size:7px}
+}
+@media(prefers-reduced-motion:reduce){
+  .studioRoutePath,.studioDestinationBadge{transition:none!important}
+}
