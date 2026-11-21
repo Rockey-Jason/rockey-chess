@@ -293,3 +293,28 @@
 }
 
 .coinMini{margin-top:12px;padding:10px 12px;border-radius:11px;background:rgba(255,216,74,.08);color:#ffd84a;font-weight:900;text-align:center}.pgnButton,.actionButton,.botButton{transition:transform .16s ease,filter .16s ease,box-shadow .16s ease}.pgnButton:hover:not(:disabled),.actionButton:hover:not(:disabled),.botButton:hover:not(:disabled){transform:scale(1.035);filter:brightness(1.13);box-shadow:0 8px 20px rgba(0,0,0,.18)}.pgnButton:active:not(:disabled),.actionButton:active:not(:disabled),.botButton:active:not(:disabled){transform:scale(.98)}
+
+
+/* AI command console refinements */
+.sidebar{position:sticky;top:18px;max-height:calc(100vh - 36px);overflow:auto;overscroll-behavior:contain;border:1px solid rgba(190,207,231,.14);border-radius:21px;padding:18px;background:radial-gradient(ellipse at 100% 0%,rgba(183,150,87,.09),transparent 38%),linear-gradient(155deg,rgba(17,36,60,.98),rgba(7,17,31,.98));box-shadow:0 22px 54px rgba(0,0,0,.27),inset 0 1px rgba(255,255,255,.055);backdrop-filter:blur(18px);scrollbar-width:thin;scrollbar-color:#324762 transparent}
+.sidebarTitle{align-items:center;padding-bottom:3px}
+.sidebar h2{font-weight:700;letter-spacing:-.035em}
+.eyebrow{color:#b49a6c;letter-spacing:.2em}
+.botList{gap:8px}
+.sidebar button{border-color:rgba(190,207,231,.09);border-radius:12px;background:linear-gradient(135deg,rgba(255,255,255,.055),rgba(255,255,255,.018));font-weight:400;transition:transform .25s cubic-bezier(.2,.8,.2,1),background .25s,border-color .25s,box-shadow .25s}
+.sidebar button:hover:not(:disabled){transform:translateX(3px);border-color:rgba(232,201,133,.3);background:rgba(232,201,133,.08);box-shadow:0 8px 20px rgba(0,0,0,.16)}
+.activeBot{background:linear-gradient(100deg,rgba(207,168,99,.18),rgba(207,168,99,.055))!important;border-color:rgba(232,201,133,.4)!important;box-shadow:inset 3px 0 0 #e5c17f,0 7px 20px rgba(0,0,0,.12)!important}
+.activeBot small{color:#f0d69e}
+.sidebarDivider{background:linear-gradient(90deg,transparent,rgba(200,212,231,.14),transparent);margin:4px 0}
+.sectionHeader h3{font-weight:700}
+.sectionHeader strong{color:#e8c985}
+.analysisHero{border-left-width:2px;border-radius:13px;background:linear-gradient(130deg,rgba(232,201,133,.09),rgba(255,255,255,.025))}
+.statCard{border:1px solid rgba(255,255,255,.035);border-radius:9px;background:rgba(255,255,255,.04);transition:transform .22s,border-color .22s,background .22s}
+.statCard:hover{transform:translateY(-2px);border-color:rgba(232,201,133,.18);background:rgba(255,255,255,.065)}
+.history{border:1px solid rgba(255,255,255,.05);background:rgba(2,9,18,.38);scrollbar-color:#354967 transparent}
+.historyMove{transition:background .2s,transform .2s}
+.historyMove:hover{transform:translateX(2px);background:rgba(232,201,133,.075)}
+.pgnButton{background:linear-gradient(135deg,#f2e3bf,#d8bd84)!important;color:#15243a!important}
+.coinMini{border:1px solid rgba(232,201,133,.13);background:linear-gradient(120deg,rgba(232,201,133,.12),rgba(255,255,255,.025));color:#e8c985;font-weight:400}
+@media(max-width:1100px){.sidebar{position:relative;top:auto;max-height:none;overflow:visible}}
+@media(max-width:600px){.sidebar{padding:13px;border-radius:16px}}

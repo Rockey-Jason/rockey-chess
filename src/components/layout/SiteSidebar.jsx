@@ -6,6 +6,8 @@ import "./SiteSidebar.css";
 const items = [
   { to: "/", icon: "♟", label: "대국", hint: "컴퓨터와 체스" },
   { to: "/pvp", icon: "⚔", label: "실시간 PvP", hint: "레이팅 매치" },
+  { to: "/openings", icon: "♞", label: "오프닝 학습", hint: "수순 · 전략 익히기" },
+  { to: "/stats", icon: "▤", label: "전적 · 통계", hint: "기보 · 승률 · 레이팅" },
   { to: "/shop", icon: "◈", label: "Rock-King Shop", hint: "체스 전용 상점" },
   { to: "/customize", icon: "✦", label: "꾸미기", hint: "보드 · 기물 · 프로필" },
 ];
@@ -20,7 +22,7 @@ export default function SiteSidebar() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!alive || !user) return;
       const loginId = user.user_metadata?.login_id || user.user_metadata?.username || user.email?.split("@")[0] || user.id;
-      const { data } = await supabase.from("users").select("nickname,login_id,chess_rating,profile_image,rock_king_coin").eq("login_id", loginId).maybeSingle();
+      const { data } = await supabase.from("users").select("name,login_id,chess_rating,profile_image,rock_king_coin").eq("login_id", loginId).maybeSingle();
       if (alive) setProfile({ ...data, loginId });
     })();
     return () => { alive = false; };
