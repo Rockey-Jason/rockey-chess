@@ -620,7 +620,7 @@
 .studioBoardRoutes{position:absolute;inset:0;z-index:4;width:100%;height:100%;overflow:visible;pointer-events:none}
 .studioRoutePath{fill:none;stroke:var(--route-color);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;opacity:.48;pointer-events:stroke;cursor:pointer;transition:opacity .18s,stroke-width .18s,filter .18s}
 .studioRoutePath:hover,.studioRoutePath.active{stroke-width:9;opacity:1;filter:drop-shadow(0 0 5px var(--route-color))}
-.studioOriginMarker{position:absolute;z-index:6;display:grid;place-items:center;min-width:13px;height:13px;padding:0 2px;border:1px solid rgba(255,255,255,.8);border-radius:5px;background:rgba(5,13,23,.82);color:#fff;font-size:7px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.38);transform:translate(-15%,-50%)}
+.studioOriginMarker{position:absolute;z-index:6;display:grid;place-items:center;min-width:13px;height:13px;padding:0 2px;border:1px solid var(--route-color,rgba(255,255,255,.8));border-radius:5px;background:rgba(5,13,23,.82);color:#fff;font-size:7px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.38);transform:translate(-15%,-50%)}
 .studioOriginMarker.active{border-color:#ffe39b;background:#5d4825;color:#ffe7ae;box-shadow:0 0 9px rgba(255,222,145,.75)}
 .studioDestinationBadge{position:absolute;z-index:7;display:grid!important;place-items:center!important;grid-template-columns:1fr!important;gap:0!important;width:23px!important;height:23px!important;min-width:23px!important;min-height:23px!important;padding:0!important;margin:0!important;border:1.5px solid currentColor!important;border-radius:7px!important;background:rgba(8,18,30,.94)!important;color:var(--route-color)!important;box-shadow:0 2px 7px rgba(0,0,0,.55),0 0 9px color-mix(in srgb,var(--route-color) 36%,transparent)!important;cursor:pointer;transform:translate(calc(-50% - var(--destination-offset-x,0px)),calc(-50% + var(--destination-offset-y,0px)));transition:transform .16s,box-shadow .16s,filter .16s!important}
 .studioDestinationBadge b{font-size:13px;line-height:1;font-weight:950}
@@ -658,3 +658,7 @@
 @media(prefers-reduced-motion:reduce){
   .studioRoutePath,.studioDestinationBadge{transition:none!important}
 }
+
+.studioRouteLegendItem{color:var(--route-color);border-color:color-mix(in srgb,var(--route-color) 25%,transparent)}
+.studioRouteLegendItem b{border-color:var(--route-color);text-shadow:0 0 7px var(--route-color)}
+.studioOriginMarker{box-shadow:0 1px 5px rgba(0,0,0,.55),0 0 5px color-mix(in srgb,var(--route-color) 50%,transparent)}
