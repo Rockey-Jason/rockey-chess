@@ -93,10 +93,66 @@ function sanForUci(pgn, ply, uci) {
   }
 }
 
-function ReviewBoard({ review, ply }) {
+const QUALITY_GLYPHS = {
+  brilliant: "✦",
+  great: "★",
+  best: "✓",
+  excellent: "◎",
+  good: "+",
+  inaccuracy: "!",
+  mistake: "⚠",
+  blunder: "×",
+  miss: "?",
+  book: "B",
+  forced: "=",
+};
+
+const QUALITY_COLORS = {"brilliant":"#ffd977","great":"#70e2ff","best":"#8fdaa7","excellent":"#78cfaf","good":"#84b7e8","inaccuracy":"#f0cf72","mistake":"#f2a66e","blunder":"#ff7774","miss":"#cc9bff","book":"#a9b8ca","forced":"#b8c3d2"};
+
+export function buildBoardRouteMap(moves = []) {
+  const originCounts = new Map();
+  const destinationCounts = new Map();
+
+  return moves.flatMap((move, index) => {
+    const uci = String(move?.uci || "").toLowerCase();
+    const from = String(move?.from || uci.slice(0, 2)).toLowerCase();
+    const to = String(move?.to || uci.slice(2, 4)).toLowerCase();
+    if (!/^[a-h][1-8]$/.test(from) || !/^[a-h][1-8]$/.test(to)) return [];
+
+    const fromFile = FILES.indexOf(from[0]);
+    const fromRank = 8 - Number(from[1]);
+    const toFile = FILES.indexOf(to[0]);
+    const toRank = 8 - Number(to[1]);
+    const originStack = originCounts.get(from) || 0;
+    const destinationStack = destinationCounts.get(to) || 0;
+    originCounts.set(from, originStack + 1);
+    destinationCounts.set(to, destinationStack + 1);
+
+    return [{
+      move,
+      index,
+      from,
+      to,
+      fromX: (fromFile + 0.5) * 100,
+      fromY: (fromRank + 0.5) * 100,
+      toX: (toFile + 0.5) * 100,
+      toY: (toRank + 0.5) * 100,
+      fromLeft: (fromFile * 12.5 + 1.6),
+      fromTop: (fromRank * 12.5 + 82),
+      toLeft: (toFile * 12.5 + 10.4),
+      toTop: (toRank * 12.5 + 10.4),
+      originStack,
+      destinationStack,
+      quality: QUALITY_COLORS[move?.quality] ? move.quality : "good",
+    }];
+  });
+}
+
+function ReviewBoard({ review, ply, moves = [], selectedIndex = -1, onSelectMove }) {
   const [phase, setPhase] = useState("start");
   const move = review.move;
   const board = review.game.board();
+  const routes = useMemo(() => buildBoardRouteMap(moves), [moves]);
 
   useEffect(() => {
     if (!move) {
@@ -116,10 +172,11 @@ function ReviewBoard({ review, ply }) {
   const fromRank = move ? 8 - Number(move.from[1]) : 0;
   const toFile = move ? FILES.indexOf(move.to[0]) : 0;
   const toRank = move ? 8 - Number(move.to[1]) : 0;
+  const activeRoute = routes.find(route => route.index === selectedIndex);
 
   return (
     <div className="studioBoardFrame">
-      <div className="studioBoard" role="img" aria-label={ply ? (ply + "번째 수 이후 체스판") : "시작 포지션"}>
+      <div className="studioBoard" role="group" aria-label={ply ? (ply + "번째 수 이후 체스판과 전체 이동 경로") : "시작 포지션과 전체 이동 경로"}>
         {board.map((rank, row) => rank.map((piece, col) => {
           const square = FILES[col] + (8 - row);
           const light = (row + col) % 2 === 0;
@@ -127,7 +184,7 @@ function ReviewBoard({ review, ply }) {
           const isTo = move?.to === square;
           const hideDestination = move && isTo && phase !== "done";
           return (
-            <div key={square} className={"studioSquare " + (light ? "light" : "dark") + (isFrom || isTo ? " moveHighlight" : "")}>
+            <div key={square} className={"studioSquare " + (light ? "light" : "dark") + (isFrom || isTo ? " moveHighlight" : "")} aria-hidden="true">
               {piece && !hideDestination && (
                 <img
                   className="studioPiece"
@@ -140,6 +197,82 @@ function ReviewBoard({ review, ply }) {
             </div>
           );
         }))}
+
+        <svg className="studioBoardRoutes" viewBox="0 0 800 800" preserveAspectRatio="none" aria-label="전체 수 이동 경로">
+          <defs>
+            {Object.entries(QUALITY_COLORS).map(([quality, color]) => (
+              <marker key={quality} id={"studioArrow-" + quality} markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+                <path d="M0,0 L7,3.5 L0,7 z" fill={color} />
+              </marker>
+            ))}
+          </defs>
+          {routes.map(route => {
+            const label = QUALITY_LABELS[route.move.quality] || route.move.quality || "분석";
+            const description = `${route.move.ply || route.index + 1}번째 수 · ${route.from} → ${route.to} · ${label} · ${formatEvaluation(route.move)}`;
+            return (
+              <path
+                key={"route-" + route.index}
+                className={"studioRoutePath quality-" + route.quality + (route.index === selectedIndex ? " active" : "")}
+                d={`M ${route.fromX} ${route.fromY} L ${route.toX} ${route.toY}`}
+                markerEnd={"url(#studioArrow-" + route.quality + ")"}
+                style={{ "--route-color": QUALITY_COLORS[route.quality] }}
+                onClick={() => onSelectMove?.(route.index)}
+                role="button"
+                tabIndex={0}
+                aria-label={description}
+                onKeyDown={event => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectMove?.(route.index);
+                  }
+                }}
+              />
+            );
+          })}
+        </svg>
+
+        {routes.map(route => {
+          const moveNo = route.move.ply || route.index + 1;
+          const qualityLabel = QUALITY_LABELS[route.move.quality] || route.move.quality || "분석";
+          const description = `${moveNo}번째 수 ${route.from}에서 ${route.to} · ${qualityLabel} · 평가 ${formatEvaluation(route.move)}`;
+          return (
+            <span
+              key={"origin-" + route.index}
+              className={"studioOriginMarker" + (route.index === selectedIndex ? " active" : "")}
+              style={{ left: route.fromLeft + "%", top: route.fromTop + "%" }}
+              title={description}
+              aria-hidden="true"
+            >
+              {moveNo}
+            </span>
+          );
+        })}
+
+        {routes.map(route => {
+          const moveNo = route.move.ply || route.index + 1;
+          const qualityLabel = QUALITY_LABELS[route.move.quality] || route.move.quality || "분석";
+          const description = `${moveNo}번째 수: ${route.from} → ${route.to}, ${qualityLabel}, 평가 ${formatEvaluation(route.move)}`;
+          return (
+            <button
+              key={"destination-" + route.index}
+              type="button"
+              className={"studioDestinationBadge quality-" + route.quality + (route.index === selectedIndex ? " active" : "")}
+              style={{
+                left: route.toLeft + "%",
+                top: route.toTop + "%",
+                "--destination-stack": route.destinationStack,
+              }}
+              onClick={() => onSelectMove?.(route.index)}
+              title={description}
+              aria-label={description + " 선택"}
+              aria-pressed={route.index === selectedIndex}
+            >
+              <b>{QUALITY_GLYPHS[route.move.quality] || "·"}</b>
+              <small>{moveNo}</small>
+            </button>
+          );
+        })}
+
         {move && phase !== "done" && (
           <img
             key={ply + "-" + move.from + "-" + move.to}
@@ -155,6 +288,20 @@ function ReviewBoard({ review, ply }) {
           />
         )}
       </div>
+
+      <div className="studioBoardRouteGuide">
+        <span className="studioRouteGuideTitle">전체 기보 경로</span>
+        <span>출발 칸의 번호 → 도착 칸의 평가 아이콘</span>
+        <span>화살표나 아이콘을 누르면 해당 수를 선택합니다</span>
+      </div>
+      <div className="studioRouteLegend" aria-label="평가 아이콘 범례">
+        {["brilliant", "great", "best", "good", "inaccuracy", "mistake", "blunder"].map(quality => (
+          <span key={quality} className={"studioRouteLegendItem quality-" + quality}>
+            <b>{QUALITY_GLYPHS[quality]}</b><small>{QUALITY_LABELS[quality]}</small>
+          </span>
+        ))}
+      </div>
+
       <div className="studioBoardCaption">
         <span>{review.headers?.White || "백"} · 백</span>
         <span className="studioBoardDot">●</span>
@@ -475,7 +622,7 @@ export default function AnalysisModal({
               </div>
 
               <div className="studioReviewGrid">
-                <ReviewBoard review={review} ply={activePly} />
+                <ReviewBoard review={review} ply={activePly} moves={moves} selectedIndex={selected} onSelectMove={goTo} />
                 <div className="studioEvaluationCard">
                   <span>현재 평가 · 백 기준</span>
                   <strong className={(active.mate ? active.mate.winner === "black" : Number(active.evaluation) < 0) ? "blackAdvantage" : "whiteAdvantage"}>{formatEvaluation(active)}</strong>
