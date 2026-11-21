@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterAnalysisMoves, formatEvaluation } from "./AnalysisModal";
+import { buildBoardRouteMap, filterAnalysisMoves, formatEvaluation } from "./AnalysisModal";
 
 const sample = [
   { quality: "best", san: "Nf3", ply: 1 },
@@ -36,5 +36,39 @@ describe("analysis studio helpers", () => {
   it("formats mate scores from White's point of view", () => {
     expect(formatEvaluation({ mate: { moves: 3, winner: "white" } })).toBe("+M3");
     expect(formatEvaluation({ mate: { moves: -2, winner: "black" } })).toBe("−M2");
+  });
+});
+
+
+describe("analysis board move-route overlay", () => {
+  it("maps each UCI move to board coordinates and preserves the source move index", () => {
+    const routes = buildBoardRouteMap([
+      { uci: "e2e4", ply: 1, quality: "great" },
+      { uci: "e7e5", ply: 2, quality: "good" },
+    ]);
+
+    expect(routes).toHaveLength(2);
+    expect(routes[0]).toMatchObject({
+      index: 0, from: "e2", to: "e4", fromX: 450, fromY: 650, toX: 450, toY: 450,
+    });
+    expect(routes[1]).toMatchObject({
+      index: 1, from: "e7", to: "e5", fromX: 450, fromY: 150, toX: 450, toY: 350,
+    });
+  });
+
+  it("keeps multiple arrivals on the same square separately identifiable", () => {
+    const routes = buildBoardRouteMap([
+      { uci: "e2e4", ply: 1, quality: "best" },
+      { uci: "d2e4", ply: 2, quality: "mistake" },
+    ]);
+    expect(routes.map(route => route.destinationStack)).toEqual([0, 1]);
+  });
+
+  it("ignores malformed or incomplete move coordinates", () => {
+    expect(buildBoardRouteMap([
+      { uci: "e2" },
+      { uci: "z9a1" },
+      { san: "Nf3" },
+    ])).toEqual([]);
   });
 });
