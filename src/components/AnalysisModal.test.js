@@ -43,8 +43,9 @@ describe("analysis studio helpers", () => {
 describe("analysis board move-route overlay", () => {
   it("maps each UCI move to board coordinates and preserves the source move index", () => {
     const routes = buildBoardRouteMap([
-      { uci: "e2e4", ply: 1, quality: "great" },
-      { uci: "e7e5", ply: 2, quality: "good" },
+      { uci: "e2e4", ply: 1, side: "player", quality: "great" },
+      { uci: "e7e5", ply: 2, side: "bot", quality: "good" },
+      { uci: "g1f3", ply: 3, side: "player", quality: "best" },
     ]);
 
     expect(routes).toHaveLength(2);
@@ -52,23 +53,40 @@ describe("analysis board move-route overlay", () => {
       index: 0, from: "e2", to: "e4", fromX: 450, fromY: 650, toX: 450, toY: 450,
     });
     expect(routes[1]).toMatchObject({
-      index: 1, from: "e7", to: "e5", fromX: 450, fromY: 150, toX: 450, toY: 350,
+      index: 2, from: "g1", to: "f3", fromX: 650, fromY: 750, toX: 550, toY: 550,
     });
   });
 
   it("keeps multiple arrivals on the same square separately identifiable", () => {
     const routes = buildBoardRouteMap([
-      { uci: "e2e4", ply: 1, quality: "best" },
-      { uci: "d2e4", ply: 2, quality: "mistake" },
+      { uci: "e2e4", ply: 1, side: "player", quality: "best" },
+      { uci: "d2e4", ply: 2, side: "player", quality: "mistake" },
     ]);
     expect(routes.map(route => route.destinationStack)).toEqual([0, 1]);
   });
 
   it("ignores malformed or incomplete move coordinates", () => {
     expect(buildBoardRouteMap([
-      { uci: "e2" },
-      { uci: "z9a1" },
-      { san: "Nf3" },
+      { uci: "e2", side: "player" },
+      { uci: "z9a1", side: "player" },
+      { san: "Nf3", side: "player" },
+      { uci: "e7e5", side: "bot" },
     ])).toEqual([]);
+  });
+});
+
+
+describe("player-only board move routes", () => {
+  it("never shows the opponent's moves, while retaining original ply indices", () => {
+    const routes = buildBoardRouteMap([
+      { uci: "e2e4", ply: 1, side: "player", quality: "good" },
+      { uci: "e7e5", ply: 2, side: "bot", quality: "blunder" },
+      { uci: "g1f3", ply: 3, side: "player", quality: "great" },
+      { uci: "b8c6", ply: 4, side: "bot", quality: "brilliant" },
+    ]);
+
+    expect(routes.map(route => route.index)).toEqual([0, 2]);
+    expect(routes.map(route => route.from + route.to)).toEqual(["e2e4", "g1f3"]);
+    expect(routes.every(route => route.move.side === "player")).toBe(true);
   });
 });

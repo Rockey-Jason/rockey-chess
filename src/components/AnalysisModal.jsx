@@ -114,6 +114,11 @@ export function buildBoardRouteMap(moves = []) {
   const destinationCounts = new Map();
 
   return moves.flatMap((move, index) => {
+    // The board overlay is a review of the human player's own moves only.
+    // Keep the original full-analysis index so selecting a marker navigates
+    // to the matching ply in the move list and position review.
+    if (move?.side !== "player") return [];
+
     const uci = String(move?.uci || "").toLowerCase();
     const from = String(move?.from || uci.slice(0, 2)).toLowerCase();
     const to = String(move?.to || uci.slice(2, 4)).toLowerCase();
