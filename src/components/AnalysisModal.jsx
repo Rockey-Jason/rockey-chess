@@ -138,7 +138,7 @@ export function buildBoardRouteMap(moves = []) {
       toX: (toFile + 0.5) * 100,
       toY: (toRank + 0.5) * 100,
       fromLeft: (fromFile * 12.5 + 1.6),
-      fromTop: (fromRank * 12.5 + 82),
+      fromTop: (fromRank * 12.5 + 10.4),
       toLeft: (toFile * 12.5 + 10.4),
       toTop: (toRank * 12.5 + 10.4),
       originStack,
@@ -172,8 +172,6 @@ function ReviewBoard({ review, ply, moves = [], selectedIndex = -1, onSelectMove
   const fromRank = move ? 8 - Number(move.from[1]) : 0;
   const toFile = move ? FILES.indexOf(move.to[0]) : 0;
   const toRank = move ? 8 - Number(move.to[1]) : 0;
-  const activeRoute = routes.find(route => route.index === selectedIndex);
-
   return (
     <div className="studioBoardFrame">
       <div className="studioBoard" role="group" aria-label={ply ? (ply + "번째 수 이후 체스판과 전체 이동 경로") : "시작 포지션과 전체 이동 경로"}>
@@ -260,7 +258,9 @@ function ReviewBoard({ review, ply, moves = [], selectedIndex = -1, onSelectMove
               style={{
                 left: route.toLeft + "%",
                 top: route.toTop + "%",
-                "--destination-stack": route.destinationStack,
+                "--destination-offset-x": (route.destinationStack * 4) + "px",
+                "--destination-offset-y": (Math.floor(route.destinationStack / 3) * 4) + "px",
+                "--route-color": QUALITY_COLORS[route.quality],
               }}
               onClick={() => onSelectMove?.(route.index)}
               title={description}
