@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
-import { playChessAudio } from "../audio/chessAudio";
+import { playChessAudio } from "../hooks/chessAudio";
 import "../styles/feature.css";
 
 const ITEMS = [
