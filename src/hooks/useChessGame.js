@@ -643,7 +643,7 @@ const say = useCallback(
         const beforeGame = new Chess(beforeFen);
         const afterGame = new Chess(afterFen);
 
-        let quality = classifyMove(cpl, isBest, move, beforeGame, afterGame, before, after, {
+        let quality = classifyMove(cpl, isBest, move, beforeGame, afterGame, {
           book: isBookMove(moveHistoryRef.current.slice(0, -1), move.san),
           secondCpl: secondBestLoss(before, move.color, beforeScore)
         });
