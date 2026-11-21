@@ -234,6 +234,10 @@ export default function AnalysisModal({
   const closeRef = useRef(null);
   const selectedRowRef = useRef(null);
   const previousFocusRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  const moveCountRef = useRef(moves.length);
+  onCloseRef.current = onClose;
+  moveCountRef.current = moves.length;
 
   useEffect(() => {
     setSelected(Math.max(0, moves.length - 1));
@@ -269,25 +273,25 @@ export default function AnalysisModal({
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
       const target = event.target;
       const isInteractive = target instanceof HTMLElement &&
         (target.matches("input, button, textarea, select, summary, a") || target.isContentEditable);
-      if (isInteractive || loading || !moves.length) return;
+      if (isInteractive || !moveCountRef.current) return;
       if (event.key === "ArrowLeft") {
         event.preventDefault();
-        goTo(selected - 1);
+        setSelected(current => Math.max(0, current - 1));
       } else if (event.key === "ArrowRight") {
         event.preventDefault();
-        goTo(selected + 1);
+        setSelected(current => Math.min(moveCountRef.current - 1, current + 1));
       } else if (event.key === "Home") {
         event.preventDefault();
-        goTo(0);
+        setSelected(0);
       } else if (event.key === "End") {
         event.preventDefault();
-        goTo(moves.length - 1);
+        setSelected(Math.max(0, moveCountRef.current - 1));
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -295,9 +299,11 @@ export default function AnalysisModal({
       window.clearTimeout(focusTimer);
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
-      if (previousFocusRef.current instanceof HTMLElement) previousFocusRef.current.focus();
+      if (previousFocusRef.current instanceof HTMLElement && previousFocusRef.current !== document.body) {
+        previousFocusRef.current.focus();
+      }
     };
-  }, [open, onClose, goTo, selected, moves.length, loading]);
+  }, [open]);
 
   useEffect(() => {
     selectedRowRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
@@ -424,7 +430,7 @@ export default function AnalysisModal({
                 <button className={filter === "critical" ? "active" : ""} onClick={() => setFilter("critical")}>주의 <b>{criticalCount}</b></button>
                 <button className={filter === "good" ? "active" : ""} onClick={() => setFilter("good")}>좋은 수 <b>{moves.filter((move) => GOOD_QUALITIES.has(move.quality)).length}</b></button>
               </div>
-              <div className="studioMoveList" role="list">
+              <div className="studioMoveList">
                 {visibleMoves.length ? visibleMoves.map(({ move, index }) => (
                   <button
                     key={(move.uci || move.san || "move") + "-" + index}
@@ -432,7 +438,6 @@ export default function AnalysisModal({
                     className={"studioMoveRow " + (index === selected ? "active" : "") + (CRITICAL_QUALITIES.has(move.quality) ? " critical" : "")}
                     onClick={() => goTo(index)}
                     aria-pressed={index === selected}
-                    role="listitem"
                   >
                     <span className="studioMoveNo">{Math.ceil((move.ply || index + 1) / 2)}{move.side === "bot" ? "…" : "."}</span>
                     <b className="studioMoveSan">{move.san || "—"}</b>
