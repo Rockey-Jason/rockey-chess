@@ -258,6 +258,7 @@ export default function AnalysisModal({
     ? Math.round(moves.reduce((sum, move) => sum + (Number(move.cpl) || 0), 0) / moves.length)
     : 0;
   const safeAccuracy = Number.isFinite(Number(accuracy)) ? Math.max(0, Math.min(100, Number(accuracy))) : 0;
+  const showcaseQuality = ["brilliant", "great", "blunder"].includes(active?.quality) ? active.quality : "";
 
   const goTo = useCallback((index) => {
     if (!moves.length) return;
@@ -378,7 +379,7 @@ export default function AnalysisModal({
             <strong>{averageCpl}<small> cp</small></strong>
           </div>
           <div className="studioQualitySummary" aria-label="수 분류 통계">
-            {["brilliant", "best", "good", "inaccuracy", "mistake", "blunder"].map((quality) => (
+            {["brilliant", "great", "best", "good", "inaccuracy", "mistake", "blunder"].map((quality) => (
               <span key={quality} className={"studioQualityCount quality-" + quality} title={QUALITY_LABELS[quality]}>
                 <b>{counts[quality] || 0}</b><small>{QUALITY_LABELS[quality]}</small>
               </span>
@@ -435,7 +436,7 @@ export default function AnalysisModal({
                   <button
                     key={(move.uci || move.san || "move") + "-" + index}
                     ref={index === selected ? selectedRowRef : null}
-                    className={"studioMoveRow " + (index === selected ? "active" : "") + (CRITICAL_QUALITIES.has(move.quality) ? " critical" : "")}
+                    className={"studioMoveRow " + (index === selected ? "active" : "") + (CRITICAL_QUALITIES.has(move.quality) ? " critical" : "") + (["brilliant", "great", "blunder"].includes(move.quality) ? " spotlight-" + move.quality : "")}
                     onClick={() => goTo(index)}
                     aria-pressed={index === selected}
                   >
@@ -451,7 +452,23 @@ export default function AnalysisModal({
               <div className="studioMoveListHint">수순을 선택하거나 좌우 방향키로 이동할 수 있어요.</div>
             </section>
 
-            <section className="studioDetailPanel" aria-label="선택한 수 분석">
+            <section className={"studioDetailPanel" + (showcaseQuality ? " qualityShowcasePanel qualityShowcasePanel-" + showcaseQuality : "")} aria-label="선택한 수 분석">
+              {showcaseQuality && (
+                <div
+                  key={String(active.ply) + "-" + String(active.uci || active.san) + "-" + showcaseQuality}
+                  className={"studioQualityShowcase studioQualityShowcase-" + showcaseQuality}
+                  aria-hidden="true"
+                >
+                  <span className="studioQualityAura" />
+                  <span className="studioQualityShockwave" />
+                  <b className="studioQualityShowcaseLabel">
+                    {showcaseQuality === "brilliant" ? "BRILLIANT!" : showcaseQuality === "great" ? "GREAT MOVE!" : "BLUNDER!"}
+                  </b>
+                  {Array.from({ length: 10 }, (_, index) => (
+                    <i key={index} className={"studioQualitySpark spark-" + (index + 1)} />
+                  ))}
+                </div>
+              )}
               <div className="studioDetailTop">
                 <div><span>POSITION REVIEW · {Math.ceil(activePly / 2)}번째 수</span><h3>{active.san || "—"}</h3></div>
                 <span className={"studioClassification quality-" + active.quality}>{QUALITY_LABELS[active.quality] || active.quality || "분석 완료"}</span>

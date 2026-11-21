@@ -3,6 +3,7 @@ import { Chess } from "chess.js";
 import { playChessAudio } from "./chessAudio";
 import { supabase } from "../supabase";
 import StockfishEngine from "../ai/StockfishEngine";
+import { classifyMove, secondBestLoss } from "../ai/moveQuality";
 import { requestMove } from "./EngineController";
 import botData from "../data/botData";
 import { dialogs } from "../data/chessDialog";
@@ -75,65 +76,6 @@ function isBookMove(history, san) {
   return BOOK_PREFIXES.some(line => next.length <= line.length && next.every((m, i) => m === line[i]));
 }
 
-function classifyMove(cpl, isBest, move, beforeGame, afterGame, beforeResult, afterResult, meta = {}) {
-  const loss = Number.isFinite(cpl) ? Math.max(0, cpl) : 999999;
-  const value = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-  const movedValue = value[move?.piece] ?? 0;
-  const capturedValue = value[move?.captured] ?? 0;
-  const givesCheck = Boolean(move?.san?.includes("+") || move?.san?.includes("#"));
-  const isCapture = Boolean(move?.captured);
-  const legalCount = beforeGame?.moves?.().length ?? 0;
-  const forced = legalCount <= 1 || Boolean(beforeResult?.mate);
-  const opponentColor = move?.color === "w" ? "b" : "w";
-
-  let destinationAttacked = false;
-  try {
-    destinationAttacked = Boolean(afterGame?.isAttacked?.(move?.to, opponentColor));
-  } catch {}
-
-  const sacrifice =
-    movedValue >= 3 &&
-    destinationAttacked &&
-    (!isCapture || capturedValue < movedValue);
-
-  const secondGap = Number.isFinite(meta.secondCpl) ? meta.secondCpl : 0;
-
-  // Brilliant is deliberately strict:
-  // - never awarded merely for check/capture;
-  // - the move must be engine-best;
-  // - it must contain a meaningful sacrifice;
-  // - the engine must show that alternatives are substantially worse.
-  const brilliant =
-    isBest &&
-    sacrifice &&
-    loss <= 12 &&
-    secondGap >= 150 &&
-    !move?.san?.includes("#");
-
-  if (meta.book && !brilliant) return "book";
-  if (forced && isBest) return "forced";
-  if (brilliant) return "brilliant";
-  if (isBest && loss <= 8) return "best";
-
-  const forcing = givesCheck || isCapture;
-  if (isBest && loss <= 25 && forcing) return "great";
-  if (loss <= 20) return "excellent";
-  if (loss <= 45) return "good";
-  if (loss <= 100) return "inaccuracy";
-  if (loss <= 220) return "mistake";
-  return "blunder";
-}
-
-function secondBestLoss(result, color, bestScore) {
-  const second = result?.candidates?.[1];
-  if (!second) return null;
-  const raw = second.mate != null
-    ? (Number(second.mate) > 0 ? 100000 : -100000)
-    : Number(second.score || 0);
-  const side = result.sideToMove === color ? 1 : -1;
-  const secondScore = raw * side;
-  return Math.max(0, bestScore - secondScore);
-}
 function accuracyFromCpl(cpl) {
   if (!Number.isFinite(cpl) || cpl <= 0) return 100;
   return Number(
@@ -684,7 +626,7 @@ const say = useCallback(
 
       try {
         const before =
-          await analysisEngineRef.current.analyzePosition(beforeFen, 15, { multiPV: 2 });
+          await analysisEngineRef.current.analyzePosition(beforeFen, 15, { multiPV: 3 });
 
         const after =
           await analysisEngineRef.current.analyzePosition(afterFen, 14, { multiPV: 1 });
@@ -701,12 +643,11 @@ const say = useCallback(
         const beforeGame = new Chess(beforeFen);
         const afterGame = new Chess(afterFen);
 
-        let quality = classifyMove(cpl, isBest, move, beforeGame, afterGame, before, after, {
+        let quality = classifyMove(cpl, isBest, move, beforeGame, afterGame, {
           book: isBookMove(moveHistoryRef.current.slice(0, -1), move.san),
           secondCpl: secondBestLoss(before, move.color, beforeScore)
         });
 
-        if (isBest && !["book", "forced", "brilliant"].includes(quality)) quality = "best";
 
         statsRef.current[quality] =
           (statsRef.current[quality] || 0) + 1;
@@ -757,7 +698,7 @@ const say = useCallback(
 
       try {
         const before =
-          await analysisEngineRef.current.analyzePosition(beforeFen, 14, { multiPV: 2 });
+          await analysisEngineRef.current.analyzePosition(beforeFen, 14, { multiPV: 3 });
 
         const after =
           await analysisEngineRef.current.analyzePosition(afterFen, 13, { multiPV: 1 });
@@ -775,8 +716,6 @@ const say = useCallback(
               move,
               new Chess(beforeFen),
               new Chess(afterFen),
-              before,
-              after,
               { book: isBookMove(game.history().slice(0, -1), move.san), secondCpl: secondBestLoss(before, "b", beforeScore) }
             );
 
@@ -1117,28 +1056,50 @@ const say = useCallback(
           replayGame.move({ from: move.from, to: move.to, ...(move.promotion ? { promotion: move.promotion } : {}) });
           const afterFen = replayGame.fen();
 
-          const before = await engine.analyzePosition(beforeFen, 13, { multiPV: 2, movetime: 110 });
+          let before = await engine.analyzePosition(beforeFen, 18, { multiPV: 3, movetime: 320 });
           if (generation !== analysisGenerationRef.current) return [];
-          const after = await engine.analyzePosition(afterFen, 11, { multiPV: 1, movetime: 80 });
+          let after = await engine.analyzePosition(afterFen, 17, { multiPV: 1, movetime: 240 });
           if (generation !== analysisGenerationRef.current) return [];
 
-          const beforeScore = playerEval(before, move.color);
-          const afterScore = playerEval(after, move.color);
-          const cpl = Math.max(0, beforeScore - afterScore);
-          const bestMove = String(before.bestMove || "").toLowerCase();
-          const quality = classifyMove(
-            cpl,
-            uci(move) === bestMove,
-            move,
-            new Chess(beforeFen),
-            new Chess(afterFen),
-            before,
-            after,
-            {
-              book: isBookMove(beforeHistory, move.san),
-              secondCpl: secondBestLoss(before, move.color, beforeScore)
-            }
-          );
+          const beforeGame = new Chess(beforeFen);
+          const afterGame = new Chess(afterFen);
+          const measureMove = (beforeResult, afterResult) => {
+            const beforeScore = playerEval(beforeResult, move.color);
+            const afterScore = playerEval(afterResult, move.color);
+            const cpl = Math.max(0, beforeScore - afterScore);
+            const bestMove = String(beforeResult.bestMove || "").toLowerCase();
+            const secondGap = secondBestLoss(beforeResult, move.color, beforeScore);
+            const isBest = uci(move) === bestMove;
+            const quality = classifyMove(
+              cpl,
+              isBest,
+              move,
+              beforeGame,
+              afterGame,
+              {
+                book: isBookMove(beforeHistory, move.san),
+                secondCpl: secondGap
+              }
+            );
+            return { beforeScore, afterScore, cpl, bestMove, secondGap, isBest, quality };
+          };
+
+          let measured = measureMove(before, after);
+          const needsVerification =
+            ["brilliant", "great", "blunder"].includes(measured.quality) ||
+            (measured.isBest && measured.secondGap !== null && measured.secondGap >= 55 && measured.secondGap <= 185) ||
+            (measured.cpl >= 170 && measured.cpl <= 270);
+
+          // Verify standout and high-impact classifications with a deeper second pass.
+          if (needsVerification) {
+            before = await engine.analyzePosition(beforeFen, 22, { multiPV: 3, movetime: 700 });
+            if (generation !== analysisGenerationRef.current) return [];
+            after = await engine.analyzePosition(afterFen, 21, { multiPV: 1, movetime: 520 });
+            if (generation !== analysisGenerationRef.current) return [];
+            measured = measureMove(before, after);
+          }
+
+          const { cpl, bestMove, quality } = measured;
 
           const whiteEvaluation = playerEval(after, "w");
           const mate = after.mate !== null && after.mate !== undefined

@@ -19,6 +19,9 @@ class StockfishEngine {
     if (msg === "uciok") {
       if (!this.initialized) {
         this.initialized = true;
+        // A larger transposition table improves repeat-position analysis.
+        this.engine.postMessage("setoption name Hash value 64");
+        this.engine.postMessage("setoption name UCI_AnalyseMode value true");
         this.engine.postMessage("isready");
       }
       return;

@@ -6,23 +6,24 @@ const sample = [
   { quality: "inaccuracy", san: "h3", ply: 2 },
   { quality: "mistake", san: "Qh4", ply: 3 },
   { quality: "brilliant", san: "Bxh7+", ply: 4 },
-  { quality: "blunder", san: "Qe7", ply: 5 },
+  { quality: "great", san: "Nd5", ply: 5 },
+  { quality: "blunder", san: "Qe7", ply: 6 },
 ];
 
 describe("analysis studio helpers", () => {
   it("preserves the order of every move in the all-moves filter", () => {
     expect(filterAnalysisMoves(sample).map(({ move }) => move.san))
-      .toEqual(["Nf3", "h3", "Qh4", "Bxh7+", "Qe7"]);
+      .toEqual(["Nf3", "h3", "Qh4", "Bxh7+", "Nd5", "Qe7"]);
   });
 
   it("filters critical inaccuracies, mistakes and blunders without changing source indices", () => {
     expect(filterAnalysisMoves(sample, "critical").map(({ index }) => index))
-      .toEqual([1, 2, 4]);
+      .toEqual([1, 2, 5]);
   });
 
   it("filters strong moves separately", () => {
     expect(filterAnalysisMoves(sample, "good").map(({ move }) => move.san))
-      .toEqual(["Nf3", "Bxh7+"]);
+      .toEqual(["Nf3", "Bxh7+", "Nd5"]);
   });
 
   it("formats centipawn evaluations with a consistent sign and precision", () => {
