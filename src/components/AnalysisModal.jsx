@@ -138,9 +138,9 @@ export function buildBoardRouteMap(moves = []) {
       toX: (toFile + 0.5) * 100,
       toY: (toRank + 0.5) * 100,
       fromLeft: (fromFile * 12.5 + 1.6),
-      fromTop: (fromRank * 12.5 + 10.4),
-      toLeft: (toFile * 12.5 + 10.4),
-      toTop: (toRank * 12.5 + 10.4),
+      fromTop: (fromRank * 12.5 + 7.5),
+      toLeft: (toFile * 12.5 + 7),
+      toTop: (toRank * 12.5 + 7),
       originStack,
       destinationStack,
       quality: QUALITY_COLORS[move?.quality] ? move.quality : "good",
@@ -237,7 +237,11 @@ function ReviewBoard({ review, ply, moves = [], selectedIndex = -1, onSelectMove
             <span
               key={"origin-" + route.index}
               className={"studioOriginMarker" + (route.index === selectedIndex ? " active" : "")}
-              style={{ left: route.fromLeft + "%", top: route.fromTop + "%" }}
+              style={{
+                left: route.fromLeft + "%",
+                top: route.fromTop + "%",
+                "--route-color": QUALITY_COLORS[route.quality],
+              }}
               title={description}
               aria-hidden="true"
             >
@@ -295,8 +299,12 @@ function ReviewBoard({ review, ply, moves = [], selectedIndex = -1, onSelectMove
         <span>화살표나 아이콘을 누르면 해당 수를 선택합니다</span>
       </div>
       <div className="studioRouteLegend" aria-label="평가 아이콘 범례">
-        {["brilliant", "great", "best", "good", "inaccuracy", "mistake", "blunder"].map(quality => (
-          <span key={quality} className={"studioRouteLegendItem quality-" + quality}>
+        {["brilliant", "great", "best", "excellent", "good", "inaccuracy", "mistake", "blunder", "miss", "book", "forced"].map(quality => (
+          <span
+            key={quality}
+            className={"studioRouteLegendItem quality-" + quality}
+            style={{ "--route-color": QUALITY_COLORS[quality] }}
+          >
             <b>{QUALITY_GLYPHS[quality]}</b><small>{QUALITY_LABELS[quality]}</small>
           </span>
         ))}
