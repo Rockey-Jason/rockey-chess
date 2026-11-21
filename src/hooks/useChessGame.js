@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Chess } from "chess.js";
+import { playChessAudio } from "../audio/chessAudio";
 import { supabase } from "../supabase";
 import StockfishEngine from "../ai/StockfishEngine";
 import { requestMove } from "./EngineController";
@@ -421,15 +422,18 @@ const say = useCallback(
     setTurn(game.turn());
   }, [game]);
 
-  const playSound = useCallback(name => {
+  const soundThemeRef = useRef("default");
+
+  const playSound = useCallback((name, piece = "p") => {
+    if (["click", "move", "capture", "castle", "promotion", "check"].includes(name)) {
+      if (playChessAudio(name === "click" ? "select" : name, piece, soundThemeRef.current)) return;
+      if (name === "click") return;
+    }
+
     try {
-      const a = new Audio(
-        `${import.meta.env.BASE_URL}sounds/${name}.mp3`
-      );
-
-      a.volume = 0.65;
-
-      a.play().catch(() => {});
+      const audio = new Audio(`${import.meta.env.BASE_URL}sounds/${name}.mp3`);
+      audio.volume = 0.58;
+      audio.play().catch(() => {});
     } catch {}
   }, []);
 
@@ -446,8 +450,16 @@ const say = useCallback(
       new StockfishEngine();
 
     const loadRating = async () => {
-      const { profile } = await getLoginIdAndProfile();
+      const { user, profile } = await getLoginIdAndProfile();
       if (!mountedRef.current) return;
+      if (user) {
+        const { data: customizationData } = await supabase
+          .from("user_customization")
+          .select("customization")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        soundThemeRef.current = customizationData?.customization?.sound || "default";
+      }
       const r = Number(profile.chess_rating);
       if (Number.isFinite(r)) setRating(r);
       if (Number.isFinite(Number(profile.doldolcoin))) setDoldolcoin(Number(profile.doldolcoin));
@@ -1234,10 +1246,12 @@ const say = useCallback(
       playSound(
         move.captured
           ? "capture"
-          : move.isKingsideCastle() ||
-              move.isQueensideCastle()
+          : move.isKingsideCastle() || move.isQueensideCastle()
             ? "castle"
-            : "move"
+            : move.promotion
+              ? "promotion"
+              : "move",
+        move.promotion || move.piece
       );
 
       setPromotionData(null);
@@ -1252,6 +1266,7 @@ const say = useCallback(
        * 플레이어가 체크를 했다면
        */
       if (game.isCheck()) {
+        playSound("check", move.promotion || move.piece);
         say("check", currentBot, {
           force: true
         });
@@ -1389,6 +1404,7 @@ const say = useCallback(
            * AI가 체크
            */
           if (game.isCheck()) {
+            playSound("check", aiMove.promotion || aiMove.piece);
             say(
               "check",
               currentBot,
@@ -1411,10 +1427,12 @@ const say = useCallback(
           playSound(
             aiMove.captured
               ? "capture"
-              : aiMove.isKingsideCastle() ||
-                  aiMove.isQueensideCastle()
+              : aiMove.isKingsideCastle() || aiMove.isQueensideCastle()
                 ? "castle"
-                : "move"
+                : aiMove.promotion
+                  ? "promotion"
+                  : "move",
+            aiMove.promotion || aiMove.piece
           );
 
           // 봇의 수 역시 동일한 기준으로 분석하여
