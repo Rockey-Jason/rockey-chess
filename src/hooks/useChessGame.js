@@ -188,6 +188,10 @@ export default function useChessGame() {
   const [analysisReady, setAnalysisReady] = useState(false);
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [analysisBusy, setAnalysisBusy] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
+  const [analysisProgress, setAnalysisProgress] = useState({ completed: 0, total: 0, currentMove: 0, percent: 0 });
+  const analysisTaskRef = useRef(null);
+  const analysisGenerationRef = useRef(0);
   const savedGameRef = useRef(false);
   const [achievementEvent, setAchievementEvent] = useState(null);
   const achievementQueueRef = useRef([]);
@@ -1066,46 +1070,162 @@ const say = useCallback(
 
   const analyzeGame = useCallback(async () => {
     if (!gameOver) return [];
+    if (analysisTaskRef.current) return analysisTaskRef.current;
+    if (analysisReady && analysisMoves.length) return analysisMoves;
+
     const pgn = gameSummary?.pgn || game.pgn({ newline: "\n" });
-    if (!pgn) return [];
-    if (!gameSummary?.pgn) {
-      setGameSummary(prev => ({ ...prev, ...finalizeSummary(result), pgn }));
+    if (!pgn) {
+      setAnalysisError("이번 경기에서 읽을 수 있는 PGN 기보를 찾지 못했습니다.");
+      return [];
     }
-    try {
-      const replay = new Chess();
-      replay.loadPgn(pgn);
-      const history = replay.history({ verbose: true });
-      const analysis = [];
-      const engine = analysisEngineRef.current;
-      const replayGame = new Chess();
-      for (let i=0;i<history.length;i++) {
-        const mv=history[i]; const beforeFen=replayGame.fen(); const beforeHistory=replayGame.history(); replayGame.move(mv); const afterFen=replayGame.fen();
-        const before=await engine.analyzePosition(beforeFen,13,{multiPV:2, movetime:110}); const after=await engine.analyzePosition(afterFen,11,{multiPV:1, movetime:80});
-        const beforeScore=playerEval(before,mv.color), afterScore=playerEval(after,mv.color);
-        const cpl=Math.max(0,beforeScore-afterScore); const bestMove=String(before.bestMove||"").toLowerCase(); const quality=classifyMove(cpl,uci(mv)===bestMove,mv,new Chess(beforeFen),new Chess(afterFen),before,after,{book:isBookMove(beforeHistory,mv.san),secondCpl:secondBestLoss(before,mv.color,beforeScore)});
-        analysis.push({ply:i+1,moveNumber:Math.ceil((i+1)/2),san:mv.san,uci:uci(mv),quality,cpl:Number(cpl.toFixed(1)),accuracy:accuracyFromCpl(cpl),bestMove,evaluation:Number((playerEval(after,"w")/100).toFixed(2)),side:mv.color==="w"?"player":"bot"});
+
+    const generation = analysisGenerationRef.current;
+    const task = (async () => {
+      setAnalysisError("");
+      setAnalysisReady(false);
+      setAnalysisProgress({ completed: 0, total: 0, currentMove: 0, percent: 0 });
+
+      try {
+        const replay = new Chess();
+        replay.loadPgn(pgn);
+        const history = replay.history({ verbose: true });
+        if (!history.length) {
+          throw new Error("경기에 분석할 수가 없습니다. 실제로 한 수 이상 진행한 뒤 분석해 주세요.");
+        }
+
+        const engine = analysisEngineRef.current;
+        if (!engine || engine.destroyed) {
+          throw new Error("Stockfish 엔진이 준비되지 않았습니다. 분석 창을 닫고 다시 시도해 주세요.");
+        }
+
+        if (!gameSummary?.pgn) {
+          setGameSummary(prev => ({ ...prev, ...finalizeSummary(result), pgn }));
+        }
+
+        const analysis = [];
+        const headers = replay.getHeaders();
+        const replayGame = new Chess(headers.FEN || undefined);
+        setAnalysisProgress({ completed: 0, total: history.length, currentMove: 1, percent: 0 });
+
+        for (let i = 0; i < history.length; i += 1) {
+          if (generation !== analysisGenerationRef.current) return [];
+
+          const move = history[i];
+          const beforeFen = replayGame.fen();
+          const beforeHistory = replayGame.history();
+          replayGame.move({ from: move.from, to: move.to, ...(move.promotion ? { promotion: move.promotion } : {}) });
+          const afterFen = replayGame.fen();
+
+          const before = await engine.analyzePosition(beforeFen, 13, { multiPV: 2, movetime: 110 });
+          const after = await engine.analyzePosition(afterFen, 11, { multiPV: 1, movetime: 80 });
+          if (generation !== analysisGenerationRef.current) return [];
+
+          const beforeScore = playerEval(before, move.color);
+          const afterScore = playerEval(after, move.color);
+          const cpl = Math.max(0, beforeScore - afterScore);
+          const bestMove = String(before.bestMove || "").toLowerCase();
+          const quality = classifyMove(
+            cpl,
+            uci(move) === bestMove,
+            move,
+            new Chess(beforeFen),
+            new Chess(afterFen),
+            before,
+            after,
+            {
+              book: isBookMove(beforeHistory, move.san),
+              secondCpl: secondBestLoss(before, move.color, beforeScore)
+            }
+          );
+
+          const whiteEvaluation = playerEval(after, "w");
+          const mate = after.mate !== null && after.mate !== undefined
+            ? {
+                moves: Math.abs(Number(after.mate)),
+                winner: whiteEvaluation >= 0 ? "white" : "black"
+              }
+            : null;
+          const evaluation = mate
+            ? (whiteEvaluation >= 0 ? 10 : -10)
+            : Number((whiteEvaluation / 100).toFixed(2));
+
+          analysis.push({
+            ply: i + 1,
+            moveNumber: Math.ceil((i + 1) / 2),
+            san: move.san,
+            uci: uci(move),
+            quality,
+            cpl: Number(cpl.toFixed(1)),
+            accuracy: accuracyFromCpl(cpl),
+            bestMove,
+            evaluation,
+            mate,
+            side: move.color === "w" ? "player" : "bot"
+          });
+
+          const completed = i + 1;
+          setAnalysisProgress({
+            completed,
+            total: history.length,
+            currentMove: Math.ceil(completed / 2),
+            percent: Math.round((completed / history.length) * 100)
+          });
+        }
+
+        if (generation !== analysisGenerationRef.current) return [];
+
+        setAnalysisMoves(analysis);
+        const playerOnly = analysis.filter(move => move.side === "player");
+        const playerAccuracy = playerOnly.length
+          ? playerOnly.reduce((sum, move) => sum + move.accuracy, 0) / playerOnly.length
+          : 100;
+        setAccuracy(Number(playerAccuracy.toFixed(1)));
+
+        const stats = emptyStats();
+        playerOnly.forEach(move => {
+          stats[move.quality] = (stats[move.quality] || 0) + 1;
+        });
+        setMoveStats(stats);
+        statsRef.current = stats;
+        setAnalysisReady(true);
+        setLastAnalysis(analysis[analysis.length - 1] || null);
+        setAnalysisProgress({
+          completed: history.length,
+          total: history.length,
+          currentMove: Math.ceil(history.length / 2),
+          percent: 100
+        });
+        return analysis;
+      } catch (error) {
+        if (generation === analysisGenerationRef.current) {
+          console.warn("Full game analysis failed:", error);
+          setAnalysisError(error?.message || "분석 중 알 수 없는 오류가 발생했습니다.");
+          setAnalysisReady(false);
+        }
+        return [];
       }
-      setAnalysisMoves(analysis);
-      const playerOnly=analysis.filter(x=>x.side==="player");
-      const acc=playerOnly.length?playerOnly.reduce((a,b)=>a+b.accuracy,0)/playerOnly.length:100;
-      setAccuracy(Number(acc.toFixed(1)));
-      const stats=emptyStats(); analysis.forEach(x=>{if(x.side==="player")stats[x.quality]=(stats[x.quality]||0)+1}); setMoveStats(stats); statsRef.current=stats;
-      setAnalysisReady(true);
-      setLastAnalysis(analysis[analysis.length-1]||null);
-      return analysis;
-    } catch(e) { console.warn("Full analysis failed",e); return []; }
-  }, [finalizeSummary, game, gameOver, gameSummary, result]);
+    })();
+
+    analysisTaskRef.current = task;
+    try {
+      return await task;
+    } finally {
+      if (analysisTaskRef.current === task) analysisTaskRef.current = null;
+    }
+  }, [analysisMoves, analysisReady, finalizeSummary, game, gameOver, gameSummary, result]);
 
   const openAnalysis = useCallback(async () => {
     if (!gameOver) return;
     setAnalysisOpen(true);
+    if (analysisReady && analysisMoves.length) return analysisMoves;
+
     setAnalysisBusy(true);
     try {
-      await analyzeGame();
+      return await analyzeGame();
     } finally {
-      setAnalysisBusy(false);
+      if (mountedRef.current) setAnalysisBusy(false);
     }
-  }, [analyzeGame, gameOver]);
+  }, [analysisMoves, analysisReady, analyzeGame, gameOver]);
 
   useEffect(() => {
     if (
@@ -1698,8 +1818,14 @@ const say = useCallback(
       }
 
       gameIdRef.current++;
+      analysisGenerationRef.current += 1;
+      analysisTaskRef.current = null;
+      setAnalysisBusy(false);
+      setAnalysisError("");
+      setAnalysisProgress({ completed: 0, total: 0, currentMove: 0, percent: 0 });
 
       engineRef.current?.stop();
+      analysisEngineRef.current?.stop();
 
       game.reset();
 
@@ -1759,6 +1885,8 @@ const say = useCallback(
       savedGameRef.current = false;
       setAnalysisReady(false);
       setAnalysisOpen(false);
+      setAnalysisError("");
+      setAnalysisProgress({ completed: 0, total: 0, currentMove: 0, percent: 0 });
 
       startTimeRef.current =
         Date.now();
@@ -1975,6 +2103,8 @@ const say = useCallback(
     analysisOpen,
     setAnalysisOpen,
     analysisBusy,
+    analysisError,
+    analysisProgress,
     openAnalysis,
     analyzeGame,
 
