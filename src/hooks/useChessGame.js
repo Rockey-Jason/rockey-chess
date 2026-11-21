@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Chess } from "chess.js";
-import { playChessAudio } from "../audio/chessAudio";
+import { playChessAudio } from "./chessAudio";
 import { supabase } from "../supabase";
 import StockfishEngine from "../ai/StockfishEngine";
 import { requestMove } from "./EngineController";
