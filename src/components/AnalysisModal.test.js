@@ -53,7 +53,7 @@ describe("analysis board move-route overlay", () => {
       index: 0, from: "e2", to: "e4", fromX: 450, fromY: 650, toX: 450, toY: 450,
     });
     expect(routes[1]).toMatchObject({
-      index: 2, from: "g1", to: "f3", fromX: 650, fromY: 850, toX: 550, toY: 650,
+      index: 2, from: "g1", to: "f3", fromX: 650, fromY: 750, toX: 550, toY: 550,
     });
   });
 
