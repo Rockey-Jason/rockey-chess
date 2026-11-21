@@ -425,16 +425,28 @@ const say = useCallback(
   const soundThemeRef = useRef("default");
 
   const playSound = useCallback((name, piece = "p") => {
-    if (["click", "move", "capture", "castle", "promotion", "check"].includes(name)) {
-      if (playChessAudio(name === "click" ? "select" : name, piece, soundThemeRef.current)) return;
-      if (name === "click") return;
+    const isPieceSound = ["move", "capture", "castle"].includes(name);
+    const usesWoodPack = soundThemeRef.current === "sound_classic";
+
+    // 기본 대국은 저장소의 실제 효과음을 사용하고,
+    // 상점 사운드 팩을 장착하면 기물별 나무 타격음으로 전환한다.
+    if (name === "click") {
+      playChessAudio("select", piece, soundThemeRef.current);
+      return;
+    }
+    if (name === "promotion" || name === "check" || (usesWoodPack && isPieceSound)) {
+      if (playChessAudio(name, piece, soundThemeRef.current)) return;
     }
 
     try {
       const audio = new Audio(`${import.meta.env.BASE_URL}sounds/${name}.mp3`);
       audio.volume = 0.58;
-      audio.play().catch(() => {});
-    } catch {}
+      audio.play().catch(() => {
+        if (isPieceSound) playChessAudio(name, piece, soundThemeRef.current);
+      });
+    } catch {
+      if (isPieceSound) playChessAudio(name, piece, soundThemeRef.current);
+    }
   }, []);
 
   /*
