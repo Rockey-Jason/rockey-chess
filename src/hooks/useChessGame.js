@@ -1118,6 +1118,7 @@ const say = useCallback(
           const afterFen = replayGame.fen();
 
           const before = await engine.analyzePosition(beforeFen, 13, { multiPV: 2, movetime: 110 });
+          if (generation !== analysisGenerationRef.current) return [];
           const after = await engine.analyzePosition(afterFen, 11, { multiPV: 1, movetime: 80 });
           if (generation !== analysisGenerationRef.current) return [];
 
