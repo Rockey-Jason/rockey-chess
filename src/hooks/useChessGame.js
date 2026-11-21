@@ -716,8 +716,6 @@ const say = useCallback(
               move,
               new Chess(beforeFen),
               new Chess(afterFen),
-              before,
-              after,
               { book: isBookMove(game.history().slice(0, -1), move.san), secondCpl: secondBestLoss(before, "b", beforeScore) }
             );
 
@@ -1078,8 +1076,6 @@ const say = useCallback(
               move,
               beforeGame,
               afterGame,
-              beforeResult,
-              afterResult,
               {
                 book: isBookMove(beforeHistory, move.san),
                 secondCpl: secondGap
