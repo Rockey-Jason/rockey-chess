@@ -223,7 +223,7 @@ export default function Board({ chess = {} }) {
         const timer = setTimeout(() => {
             setAnimations([]);
             setHiddenSquares([]);
-        }, 350);
+        }, 430);
 
         return () => {
             cancelAnimationFrame(frame1);
@@ -368,6 +368,7 @@ export default function Board({ chess = {} }) {
                 <Square
                     key={square}
                     color={light ? "light" : "dark"}
+                    coordinate={square}
                     onClick={() => {
                         if (suppressClickRef.current) {
                             suppressClickRef.current = false;
