@@ -52,13 +52,28 @@ class StockfishEngine {
 
   async stop() {
     await this.waitUntilReady();
-    if (this.searching) this.engine.postMessage("stop");
+    if (!this.searching || !this.pending) return;
+
+    const pending = this.pending;
+    await new Promise(resolve => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      const previousHandler = pending.onMessage;
+      pending.onMessage = message => {
+        previousHandler(message);
+        if (message.startsWith("bestmove")) finish();
+      };
+      this.engine.postMessage("stop");
+    });
   }
 
   async newGame() {
     await this.waitUntilReady();
-    if (this.searching) this.engine.postMessage("stop");
-    this.searching = false;
+    if (this.searching) await this.stop();
     this.engine.postMessage("ucinewgame");
     this.engine.postMessage("isready");
   }
