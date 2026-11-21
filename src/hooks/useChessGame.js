@@ -1081,6 +1081,7 @@ const say = useCallback(
 
     const generation = analysisGenerationRef.current;
     const task = (async () => {
+      setAnalysisBusy(true);
       setAnalysisError("");
       setAnalysisReady(false);
       setAnalysisProgress({ completed: 0, total: 0, currentMove: 0, percent: 0 });
@@ -1203,6 +1204,8 @@ const say = useCallback(
           setAnalysisReady(false);
         }
         return [];
+      } finally {
+        if (generation === analysisGenerationRef.current) setAnalysisBusy(false);
       }
     })();
 
@@ -1214,17 +1217,11 @@ const say = useCallback(
     }
   }, [analysisMoves, analysisReady, finalizeSummary, game, gameOver, gameSummary, result]);
 
-  const openAnalysis = useCallback(async () => {
-    if (!gameOver) return;
+  const openAnalysis = useCallback(() => {
+    if (!gameOver) return Promise.resolve([]);
     setAnalysisOpen(true);
-    if (analysisReady && analysisMoves.length) return analysisMoves;
-
-    setAnalysisBusy(true);
-    try {
-      return await analyzeGame();
-    } finally {
-      if (mountedRef.current) setAnalysisBusy(false);
-    }
+    if (analysisReady && analysisMoves.length) return Promise.resolve(analysisMoves);
+    return analyzeGame();
   }, [analysisMoves, analysisReady, analyzeGame, gameOver]);
 
   useEffect(() => {
