@@ -8,6 +8,7 @@ class StockfishEngine {
     this.searchId = 0;
     this.pending = null;
     this.commandQueue = [];
+    this.stopPromise = null;
     this.readyPromise = new Promise(resolve => { this.resolveReady = resolve; });
 
     this.engine.onmessage = event => this._handle(String(event.data ?? ""));
@@ -52,23 +53,26 @@ class StockfishEngine {
 
   async stop() {
     await this.waitUntilReady();
+    if (this.stopPromise) return this.stopPromise;
     if (!this.searching || !this.pending) return;
 
     const pending = this.pending;
-    await new Promise(resolve => {
-      let settled = false;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        resolve();
-      };
-      const previousHandler = pending.onMessage;
-      pending.onMessage = message => {
-        previousHandler(message);
-        if (message.startsWith("bestmove")) finish();
-      };
-      this.engine.postMessage("stop");
-    });
+    let resolveStop;
+    const stopPromise = new Promise(resolve => { resolveStop = resolve; });
+    this.stopPromise = stopPromise;
+
+    const previousHandler = pending.onMessage;
+    pending.onMessage = message => {
+      previousHandler(message);
+      if (message.startsWith("bestmove")) resolveStop();
+    };
+
+    this.engine.postMessage("stop");
+    try {
+      await stopPromise;
+    } finally {
+      if (this.stopPromise === stopPromise) this.stopPromise = null;
+    }
   }
 
   async newGame() {
