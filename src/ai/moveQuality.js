@@ -26,8 +26,6 @@ export function classifyMove(
   move,
   beforeGame,
   afterGame,
-  beforeResult,
-  afterResult,
   meta = {}
 ) {
   const loss = Number.isFinite(Number(cpl)) ? Math.max(0, Number(cpl)) : 999999;
@@ -35,7 +33,9 @@ export function classifyMove(
   const capturedValue = PIECE_VALUES[move?.captured] ?? 0;
   const legalCount = beforeGame?.moves?.().length ?? 0;
   const forced = legalCount <= 1;
-  const secondGap = Number.isFinite(Number(meta.secondCpl)) ? Number(meta.secondCpl) : null;
+  const secondGap = meta.secondCpl != null && Number.isFinite(Number(meta.secondCpl))
+    ? Number(meta.secondCpl)
+    : null;
 
   let destinationAttacked = false;
   try {
