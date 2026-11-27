@@ -37,3 +37,28 @@
 @media(prefers-reduced-motion:reduce){
   .siteSidebar,.siteNavItem,.navIcon,.brandMark,.collapseButton{transition:none!important}
 }
+
+
+/* Desktop collapsed mode retains a reachable expand control. */
+@media(min-width:901px){
+  .siteSidebar.collapsed .siteBrand{
+    height:62px;
+    flex-direction:column;
+    justify-content:center;
+    gap:4px;
+  }
+  .siteSidebar.collapsed .brandMark{width:30px;height:30px;border-radius:9px}
+  .siteSidebar.collapsed .collapseButton{
+    display:grid!important;
+    place-items:center;
+    width:26px!important;
+    height:22px!important;
+    margin:0!important;
+    padding:0!important;
+    font-size:15px;
+    line-height:1;
+  }
+}
+@media(max-width:900px){
+  .siteSidebar .collapseButton{display:none!important}
+}
