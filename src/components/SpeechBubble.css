@@ -100,3 +100,10 @@
         border-right-width: 9px;
     }
 }
+
+
+.speechBubble{max-width:min(360px,calc(100vw - 56px));font-weight:400}
+@media(prefers-reduced-motion:reduce){
+  .speechBubble,.speechCursor{animation:none!important;transition:none!important}
+  .speechCursor{display:none}
+}
