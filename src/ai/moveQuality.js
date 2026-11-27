@@ -29,6 +29,9 @@ export function classifyMove(
   meta = {}
 ) {
   const loss = Number.isFinite(Number(cpl)) ? Math.max(0, Number(cpl)) : 999999;
+  // A completed mate is decisive regardless of score availability or opening tags.
+  if (afterGame?.isCheckmate?.() || move?.san?.includes("#")) return "best";
+
   const movedValue = PIECE_VALUES[move?.piece] ?? 0;
   const capturedValue = PIECE_VALUES[move?.captured] ?? 0;
   const legalCount = beforeGame?.moves?.().length ?? 0;
@@ -60,9 +63,6 @@ export function classifyMove(
     !move?.san?.includes("#");
 
   if (meta.book) return "book";
-  // Delivering checkmate is a decisive win, even if the terminal position
-  // has no legal move for Stockfish to score.
-  if (afterGame?.isCheckmate?.() || move?.san?.includes("#")) return "best";
   if (forced && isBest) return "forced";
   if (brilliant) return "brilliant";
 
