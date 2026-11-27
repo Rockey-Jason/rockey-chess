@@ -461,9 +461,8 @@ export default function Board({ chess = {} }) {
         return () => {
             window.cancelAnimationFrame(frame);
             document.removeEventListener("keydown", onKeyDown);
-            if (document.activeElement instanceof HTMLElement &&
-                document.activeElement.closest(".promotionMenu")) {
-                boardRef.current?.focus({ preventScroll: true });
+            if (boardRef.current?.isConnected) {
+                boardRef.current.focus({ preventScroll: true });
             }
         };
     }, [promotionData, cancelPromotion]);
