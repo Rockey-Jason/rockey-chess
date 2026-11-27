@@ -60,6 +60,9 @@ export function classifyMove(
     !move?.san?.includes("#");
 
   if (meta.book) return "book";
+  // Delivering checkmate is a decisive win, even if the terminal position
+  // has no legal move for Stockfish to score.
+  if (afterGame?.isCheckmate?.() || move?.san?.includes("#")) return "best";
   if (forced && isBest) return "forced";
   if (brilliant) return "brilliant";
 
