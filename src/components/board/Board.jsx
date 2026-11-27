@@ -11,6 +11,7 @@ import RatingChange from "../RatingChange";
 import { supabase } from "../../supabase";
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
+const pieceNames = { k: "킹", q: "퀸", r: "룩", b: "비숍", n: "나이트", p: "폰" };
 
 const order = {
     Q: 0,
@@ -36,8 +37,10 @@ export default function Board({ chess = {} }) {
     const boardRef = useRef(null);
     const gameOverRef = useRef(null);
     const [hiddenSquares, setHiddenSquares] = useState([]);
-    const [gameOverTransitioning, setGameOverTransitioning] = useState(false);
     const [animations, setAnimations] = useState([]);
+    const [focusedSquare, setFocusedSquare] = useState("e2");
+    const promotionFirstRef = useRef(null);
+    const previousFocusRef = useRef(null);
     const pointerFromRef = useRef(null);
     const suppressClickRef = useRef(false);
     const [customization, setCustomization] = useState({
@@ -81,40 +84,52 @@ export default function Board({ chess = {} }) {
         currentEvaluation = 0,
         playerProfile = { name: "나", rating: 0, image: "" },
         lastAnalysis = null,
-        isThinking = false
+        isThinking = false,
+        turn = "w",
+        history = [],
+        clearSelection = () => {},
+        cancelPromotion = () => {},
+        undoMove = () => {},
+        analysisBusy = false
     } = chess;
 
     const profile = botData[currentBot] || botData.talc || {};
     useEffect(() => {
         if (!gameOver) {
-            setGameOverTransitioning(false);
+            previousFocusRef.current?.focus?.({ preventScroll: true });
+            previousFocusRef.current = null;
             return undefined;
         }
 
-        const previousOverscroll = document.documentElement.style.scrollBehavior;
-        document.documentElement.style.scrollBehavior = "auto";
-        setGameOverTransitioning(true);
+        previousFocusRef.current = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : boardRef.current;
 
-        const scrollTimer = window.setTimeout(() => {
-            const target = gameOverRef.current || boardRef.current;
-            if (!target) return;
-
-            target.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-                inline: "nearest"
-            });
+        const focusTimer = window.setTimeout(() => {
+            gameOverRef.current?.querySelector("button:not(:disabled)")?.focus();
         }, 80);
 
-        const unlockTimer = window.setTimeout(() => {
-            setGameOverTransitioning(false);
-        }, 900);
+        const trapFocus = event => {
+            if (event.key !== "Tab") return;
+            const controls = Array.from(
+                gameOverRef.current?.querySelectorAll("button:not(:disabled), a[href], [tabindex]:not([tabindex='-1'])") || []
+            );
+            if (!controls.length) return;
+            const first = controls[0];
+            const last = controls[controls.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
 
+        document.addEventListener("keydown", trapFocus);
         return () => {
-            window.clearTimeout(scrollTimer);
-            window.clearTimeout(unlockTimer);
-            setGameOverTransitioning(false);
-            document.documentElement.style.scrollBehavior = previousOverscroll;
+            window.clearTimeout(focusTimer);
+            document.removeEventListener("keydown", trapFocus);
         };
     }, [gameOver]);
 
@@ -178,10 +193,17 @@ export default function Board({ chess = {} }) {
             return;
         }
 
-        const boardSize =
-            boardRef.current.getBoundingClientRect().width / 8;
+        const rect = boardRef.current.getBoundingClientRect();
+        const boardStyle = window.getComputedStyle(boardRef.current);
+        const borderLeft = Number.parseFloat(boardStyle.borderLeftWidth) || 0;
+        const borderRight = Number.parseFloat(boardStyle.borderRightWidth) || 0;
+        const borderTop = Number.parseFloat(boardStyle.borderTopWidth) || 0;
+        const borderBottom = Number.parseFloat(boardStyle.borderBottomWidth) || 0;
+        const boardSize = Math.max(0, rect.width - borderLeft - borderRight) / 8;
 
-        const squarePosition = (square) => ({
+        // Absolute move overlays are positioned inside the board's padding box.
+        // Exclude the decorative frame so animation endpoints align with squares.
+        const squarePosition = square => ({
             x: (square.charCodeAt(0) - 97) * boardSize,
             y: (8 - Number(square[1])) * boardSize
         });
@@ -205,28 +227,30 @@ export default function Board({ chess = {} }) {
         });
 
         setHiddenSquares(
-            moveAnimations.flatMap((move) => [move.from, move.to])
+            moveAnimations.flatMap(move => [move.from, move.to])
         );
-        setAnimations(animationList);
 
-        const frame1 = requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                setAnimations((prev) =>
-                    prev.map((animation) => ({
-                        ...animation,
-                        animate: true
-                    }))
-                );
+        const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        let secondFrame = 0;
+        setAnimations(reducedMotion
+            ? animationList.map(animation => ({ ...animation, animate: true }))
+            : animationList
+        );
+
+        const frame1 = reducedMotion ? 0 : requestAnimationFrame(() => {
+            secondFrame = requestAnimationFrame(() => {
+                setAnimations(prev => prev.map(animation => ({ ...animation, animate: true })));
             });
         });
 
-        const timer = setTimeout(() => {
+        const timer = window.setTimeout(() => {
             setAnimations([]);
             setHiddenSquares([]);
-        }, 430);
+        }, reducedMotion ? 90 : 430);
 
         return () => {
-            cancelAnimationFrame(frame1);
+            if (frame1) cancelAnimationFrame(frame1);
+            if (secondFrame) cancelAnimationFrame(secondFrame);
             clearTimeout(timer);
         };
     }, [moveAnimations]);
@@ -236,14 +260,21 @@ export default function Board({ chess = {} }) {
     const getBoardPointer = (event) => {
         if (!boardRef.current) return null;
         const rect = boardRef.current.getBoundingClientRect();
-        const size = rect.width / 8;
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        const style = window.getComputedStyle(boardRef.current);
+        const left = Number.parseFloat(style.borderLeftWidth) || 0;
+        const right = Number.parseFloat(style.borderRightWidth) || 0;
+        const top = Number.parseFloat(style.borderTopWidth) || 0;
+        const bottom = Number.parseFloat(style.borderBottomWidth) || 0;
+        const width = Math.max(0, rect.width - left - right);
+        const height = Math.max(0, rect.height - top - bottom);
+        const size = width / 8;
+        const x = event.clientX - rect.left - left;
+        const y = event.clientY - rect.top - top;
         return {
             x,
             y,
             size,
-            inside: x >= 0 && y >= 0 && x <= rect.width && y <= rect.height
+            inside: x >= 0 && y >= 0 && x <= width && y <= height
         };
     };
 
@@ -355,26 +386,83 @@ export default function Board({ chess = {} }) {
     };
 
     const squares = [];
+    const currentKingSquare = inCheck ? kingSquare() : null;
+
+    const handleBoardKeyDown = event => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+            event.preventDefault();
+            if (history.length > 0 && !isThinking && !gameOver) undoMove();
+            return;
+        }
+
+        const col = files.indexOf(focusedSquare[0]);
+        const row = 8 - Number(focusedSquare[1]);
+        const offsets = {
+            ArrowUp: [0, -1],
+            ArrowDown: [0, 1],
+            ArrowLeft: [-1, 0],
+            ArrowRight: [1, 0]
+        };
+
+        if (offsets[event.key]) {
+            event.preventDefault();
+            const [dx, dy] = offsets[event.key];
+            const nextCol = col + dx;
+            const nextRow = row + dy;
+            if (nextCol >= 0 && nextCol < 8 && nextRow >= 0 && nextRow < 8) {
+                setFocusedSquare(files[nextCol] + (8 - nextRow));
+            }
+            return;
+        }
+
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            clickSquare(focusedSquare);
+        } else if (event.key === "Escape") {
+            event.preventDefault();
+            clearSelection();
+        }
+    };
+
+    useEffect(() => {
+        if (!promotionData) return undefined;
+        const frame = window.requestAnimationFrame(() => promotionFirstRef.current?.focus());
+        const onKeyDown = event => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                cancelPromotion();
+            }
+        };
+        document.addEventListener("keydown", onKeyDown);
+        return () => {
+            window.cancelAnimationFrame(frame);
+            document.removeEventListener("keydown", onKeyDown);
+        };
+    }, [promotionData, cancelPromotion]);
 
     for (let row = 8; row >= 1; row -= 1) {
         for (let col = 0; col < 8; col += 1) {
             const square = files[col] + row;
             const light = (row + col) % 2 === 0;
             const piece = getPiece(square);
-            const isCheck =
-                inCheck && kingSquare() === square;
+            const isCheck = inCheck && currentKingSquare === square;
 
             squares.push(
                 <Square
                     key={square}
+                    id={"chess-square-" + square}
                     color={light ? "light" : "dark"}
                     coordinate={square}
+                    ariaSelected={selected === square}
+                    ariaLabel={`${square}, ${piece ? (piece[0] === "w" ? "백" : "흑") + " " + pieceNames[piece[1].toLowerCase()] : "빈 칸"}${selected === square ? ", 선택됨" : ""}${moves.includes(square) ? ", 이동 가능" : ""}${isCheck && currentKingSquare === square ? ", 체크" : ""}`}
                     onClick={() => {
                         if (suppressClickRef.current) {
                             suppressClickRef.current = false;
                             return;
                         }
+                        setFocusedSquare(square);
                         clickSquare(square);
+                        boardRef.current?.focus({ preventScroll: true });
                     }}
                     onPointerDown={(event) => startPointerDrag(event, square)}
                     onPointerLeave={() => {}}
@@ -488,6 +576,13 @@ export default function Board({ chess = {} }) {
                 )}
             </div>
 
+            <div className="boardUtilityRow">
+                <span id="board-keyboard-help">드래그 또는 두 번 선택 · 방향키 이동 · Enter 선택 · Esc 취소 · Ctrl+Z 되돌리기</span>
+                <button type="button" className="boardUtilityButton" onClick={() => downloadPGN(gameSummary)} disabled={!history.length}>
+                    <span aria-hidden="true">↓</span> PGN 저장
+                </button>
+            </div>
+
             <div className="boardArea">
                 <div className="capturedRow">
                     <div className="capturedBox">
@@ -513,6 +608,13 @@ export default function Board({ chess = {} }) {
                 <div
                     className={`board board-theme-${boardTheme} move-effect-${moveEffect}`}
                     ref={boardRef}
+                    role="grid"
+                    aria-label={`체스판. ${turn === "w" ? "내 차례" : "AI 차례"}. 방향키로 칸을 이동하고 Enter로 선택할 수 있습니다.`}
+                    aria-activedescendant={"chess-square-" + focusedSquare}
+                    aria-disabled={gameOver || isThinking || turn !== "w"}
+                    aria-describedby="board-keyboard-help"
+                    tabIndex={0}
+                    onKeyDown={handleBoardKeyDown}
                     onPointerMove={updateDragVisual}
                     onPointerUp={finishPointerDrag}
                     onPointerCancel={cancelPointerDrag}
@@ -541,6 +643,7 @@ export default function Board({ chess = {} }) {
                         <div
                             key={animation.id}
                             className="movingPiece"
+                            aria-hidden="true"
                             style={{
                                 width: animation.size,
                                 height: animation.size,
@@ -597,57 +700,85 @@ export default function Board({ chess = {} }) {
 
             {gameOver && (
                 <>
-                    <div className={`game-over-backdrop${gameOverTransitioning ? " transition-lock" : ""}`} aria-hidden="true" />
-                    <div className={`game-over${gameOverTransitioning ? " transition-lock" : ""}`}>
-                        <div className="popup" ref={gameOverRef}>
-                        <div className="resultEyebrow">
-                            ROCKEY CHESS
-                        </div>
-
-                        <h1>
-                            {result === "1/2-1/2"
-                                ? "DRAW"
-                                : "GAME OVER"}
-                        </h1>
-
-                        <h2>{winner}</h2>
-
-                        <div className="finalAccuracy">
-                            <span>Accuracy</span>
-                            <strong>{accuracy}%</strong>
-                        </div>
-
-                        <button
-                            className="primaryAction"
-                            onClick={() => openAnalysis()}
+                    <div className="game-over-backdrop" aria-hidden="true" />
+                    <div className="game-over">
+                        <section
+                            className="popup"
+                            ref={gameOverRef}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="chess-result-title"
+                            aria-describedby="chess-result-detail"
                         >
-                            📊 게임 분석하기
-                        </button>
+                            <div className="resultEyebrow">ROCKEY CHESS · MATCH RESULT</div>
+                            <h1 id="chess-result-title">
+                                {result === "1/2-1/2" ? "무승부" : winner === "White" ? "승리" : "패배"}
+                            </h1>
+                            <h2 id="chess-result-detail">
+                                {result === "1/2-1/2"
+                                    ? "양쪽 모두 승패를 가리지 못했습니다."
+                                    : winner === "White"
+                                        ? "멋진 대국이었어요!"
+                                        : "다음 대국에서 다시 도전해 보세요."}
+                            </h2>
 
-                        <button
-                            className="secondaryAction"
-                            onClick={resetGame}
-                        >
-                            다시 플레이
-                        </button>
-                        </div>
+                            <div className="finalAccuracy">
+                                <span>나의 정확도</span>
+                                <strong>{Number(accuracy).toFixed(1)}%</strong>
+                            </div>
+
+                            <button
+                                className="primaryAction"
+                                onClick={() => openAnalysis()}
+                                disabled={analysisBusy}
+                            >
+                                {analysisBusy ? "분석 준비 중…" : "📊 게임 분석하기"}
+                            </button>
+                            <button
+                                className="secondaryAction"
+                                onClick={() => downloadPGN(gameSummary)}
+                                disabled={!gameSummary?.pgn}
+                            >
+                                기보 PGN 저장
+                            </button>
+                            <button className="secondaryAction" onClick={resetGame}>
+                                다시 플레이
+                            </button>
+                        </section>
                     </div>
                 </>
             )}
             </div>
 
             {promotionData && (
-                <div className="promotionMenu">
-                    {["Q", "R", "B", "N"].map((piece) => (
-                        <img
-                            key={piece}
-                            src={`${import.meta.env.BASE_URL}pieces/w${piece}.png`}
-                            onClick={() =>
-                                choosePromotion(piece.toLowerCase())
-                            }
-                            alt={piece}
-                        />
-                    ))}
+                <div className="promotionBackdrop">
+                    <section className="promotionMenu" role="dialog" aria-modal="true" aria-labelledby="promotion-title">
+                        <div className="promotionHeading">
+                            <span id="promotion-title">승격할 기물을 선택하세요</span>
+                            <small>{promotionData.to?.toUpperCase()}</small>
+                        </div>
+                        <div className="promotionChoices">
+                            {[
+                                ["Q", "퀸"],
+                                ["R", "룩"],
+                                ["B", "비숍"],
+                                ["N", "나이트"]
+                            ].map(([piece, label], index) => (
+                                <button
+                                    key={piece}
+                                    ref={index === 0 ? promotionFirstRef : null}
+                                    type="button"
+                                    onClick={() => choosePromotion(piece.toLowerCase())}
+                                    aria-label={`${label}으로 승격`}
+                                    title={`${label}으로 승격`}
+                                >
+                                    <img src={`${import.meta.env.BASE_URL}pieces/w${piece}.png`} alt="" />
+                                    <span>{label}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <button type="button" className="promotionCancel" onClick={cancelPromotion}>취소</button>
+                    </section>
                 </div>
             )}
 
