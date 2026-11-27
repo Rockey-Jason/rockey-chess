@@ -662,3 +662,7 @@
 .studioRouteLegendItem{color:var(--route-color);border-color:color-mix(in srgb,var(--route-color) 25%,transparent)}
 .studioRouteLegendItem b{border-color:var(--route-color);text-shadow:0 0 7px var(--route-color)}
 .studioOriginMarker{box-shadow:0 1px 5px rgba(0,0,0,.55),0 0 5px color-mix(in srgb,var(--route-color) 50%,transparent)}
+
+
+/* The analysis studio must sit above the match-result dialog that opened it. */
+.analysisStudioBackdrop{z-index:100100!important}

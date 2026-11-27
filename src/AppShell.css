@@ -27,3 +27,27 @@
 @media(max-width:900px){.siteSidebar{padding-top:76px!important}.appShell .pageContent{padding-top:68px}}
 @media(max-width:560px){.dori-main-site-button{width:152px!important;min-width:152px!important;height:43px!important;min-height:43px!important;gap:7px!important;padding:6px 8px!important;border-radius:12px!important;font-size:12px!important}.dori-main-home-mark{flex-basis:27px!important;width:27px!important;min-width:27px!important;height:27px!important;border-radius:8px!important;font-size:12px!important}}
 @media(prefers-reduced-motion:reduce){.dori-main-site-button::before{display:none!important}}
+
+
+/* Keep the content column aligned with the sidebar's actual desktop width. */
+.appShell.navCollapsed{padding-left:78px}
+.appShell.navCollapsed>.pageContent{padding-left:0}
+@media(max-width:900px){
+  .appShell,.appShell.navCollapsed{padding-left:72px}
+}
+
+
+@media(max-width:700px){
+  .appShell,.appShell.navCollapsed{
+    padding-left:0!important;
+    padding-bottom:calc(70px + env(safe-area-inset-bottom));
+  }
+}
+
+
+@media(max-width:700px){
+  /* The shared site-link reserves top space on desktop only; mobile navigation is bottom anchored. */
+  .appShell .siteSidebar{
+    padding:5px 8px calc(5px + env(safe-area-inset-bottom))!important;
+  }
+}

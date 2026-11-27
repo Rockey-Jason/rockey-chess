@@ -392,6 +392,7 @@ export default function AnalysisModal({
   const [filter, setFilter] = useState("all");
   const [copyMessage, setCopyMessage] = useState("");
   const closeRef = useRef(null);
+  const dialogRef = useRef(null);
   const selectedRowRef = useRef(null);
   const previousFocusRef = useRef(null);
   const onCloseRef = useRef(onClose);
@@ -437,6 +438,24 @@ export default function AnalysisModal({
         onCloseRef.current?.();
         return;
       }
+      if (event.key === "Tab") {
+        const focusable = Array.from(
+          dialogRef.current?.querySelectorAll(
+            'button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])'
+          ) || []
+        );
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+        return;
+      }
       const target = event.target;
       const isInteractive = target instanceof HTMLElement &&
         (target.matches("input, button, textarea, select, summary, a") || target.isContentEditable);
@@ -467,7 +486,11 @@ export default function AnalysisModal({
   }, [open]);
 
   useEffect(() => {
-    selectedRowRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    selectedRowRef.current?.scrollIntoView?.({
+      block: "nearest",
+      behavior: reducedMotion ? "auto" : "smooth"
+    });
   }, [selected, filter, open]);
 
   const copyPgn = async () => {
@@ -505,7 +528,7 @@ export default function AnalysisModal({
         if (event.target === event.currentTarget) onClose?.();
       }}
     >
-      <section className="analysisStudio" role="dialog" aria-modal="true" aria-labelledby="analysis-studio-title">
+      <section ref={dialogRef} className="analysisStudio" role="dialog" aria-modal="true" aria-labelledby="analysis-studio-title">
         <header className="studioHeader">
           <div className="studioBrand">
             <div className="studioBrandMark">♞</div>

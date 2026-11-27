@@ -4,7 +4,6 @@ import { supabase } from "../supabase";
 import "../styles/feature.css";
 import "./ChessStats.css";
 
-const loginFromUser = user => user?.user_metadata?.login_id || user?.user_metadata?.username || user?.email?.split("@")[0] || user?.id || null;
 const resultLabel = result => result === "1-0" ? "승리" : result === "0-1" ? "패배" : result === "1/2-1/2" ? "무승부" : "진행 중";
 const resultClass = result => result === "1-0" ? "win" : result === "0-1" ? "loss" : "draw";
 
@@ -39,9 +38,8 @@ export default function ChessStats() {
         return;
       }
       setUser(currentUser);
-      const loginId = loginFromUser(currentUser);
       const [profileResult, gamesResult] = await Promise.all([
-        supabase.from("users").select("login_id,name,chess_rating,profile_image").eq("login_id", loginId).maybeSingle(),
+        supabase.from("users").select("login_id,name,chess_rating,profile_image").eq("user_id", currentUser.id).maybeSingle(),
         supabase.from("chess_games").select("id,mode,bot_id,result,pgn,accuracy,summary,created_at,pvp_room_id").eq("user_id", currentUser.id).order("created_at", { ascending: false }).limit(500)
       ]);
       if (!alive) return;
@@ -69,7 +67,11 @@ export default function ChessStats() {
     return { wins, losses, draws, valid, accuracy, streak, winRate: valid ? wins / valid * 100 : 0, pvp: games.filter(g => g.mode === "pvp").length, bot: games.filter(g => g.mode !== "pvp").length };
   }, [games]);
 
-  const monthly = useMemo(() => monthBuckets(games).map(item => ({ ...item, height: Math.max(5, item.count / Math.max(1, ...monthBuckets(games).map(x => x.count)) * 100) })), [games]);
+  const monthly = useMemo(() => {
+    const buckets = monthBuckets(games);
+    const maximum = Math.max(1, ...buckets.map(item => item.count));
+    return buckets.map(item => ({ ...item, height: Math.max(5, item.count / maximum * 100) }));
+  }, [games]);
   const visible = useMemo(() => games.filter(g => filter === "all" || (filter === "pvp" ? g.mode === "pvp" : g.mode !== "pvp")), [games, filter]);
 
   const download = game => {
@@ -79,8 +81,10 @@ export default function ChessStats() {
     const a = document.createElement("a");
     a.href = url;
     a.download = `dori-chess-${String(game.created_at || "").slice(0, 10) || "game"}.pgn`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   if (loading) return <div className="featurePage"><div className="featureShell"><div className="notice">체스 기록을 불러오는 중…</div></div></div>;
