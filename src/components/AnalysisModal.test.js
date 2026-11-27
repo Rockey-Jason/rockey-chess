@@ -69,6 +69,12 @@ describe("selected move board overlay", () => {
     expect(routes[0]).toMatchObject({ index: 1, from: "e7", to: "e5", quality: "good" });
   });
 
+  it("places the quality badge near the upper-right of the destination square", () => {
+    const [route] = buildBoardRouteMap(moves, 2);
+    expect(route.toLeft).toBeCloseTo(71.6);
+    expect(route.toTop).toBeCloseTo(65.9);
+  });
+
   it("renders no route when no move is selected or the coordinates are invalid", () => {
     expect(buildBoardRouteMap(moves)).toEqual([]);
     expect(buildBoardRouteMap([{ uci: "e2", side: "player" }], 0)).toEqual([]);
