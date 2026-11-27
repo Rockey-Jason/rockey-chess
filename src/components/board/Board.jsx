@@ -423,7 +423,6 @@ export default function Board({ chess = {} }) {
         pointerFromRef.current = null;
         pointerIdRef.current = null;
         pointerCaptureTargetRef.current = null;
-        pointerCanCommitRef.current = false;
         suppressClickRef.current = true;
         setDragVisual(null);
     };
