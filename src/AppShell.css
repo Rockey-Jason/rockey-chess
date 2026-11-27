@@ -35,3 +35,11 @@
 @media(max-width:900px){
   .appShell,.appShell.navCollapsed{padding-left:72px}
 }
+
+
+@media(max-width:700px){
+  .appShell,.appShell.navCollapsed{
+    padding-left:0!important;
+    padding-bottom:calc(70px + env(safe-area-inset-bottom));
+  }
+}
