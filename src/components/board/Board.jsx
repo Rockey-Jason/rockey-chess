@@ -95,6 +95,18 @@ export default function Board({ chess = {} }) {
     } = chess;
 
     const profile = botData[currentBot] || botData.talc || {};
+    const opponentStatus = gameOver
+        ? "대국 종료"
+        : isThinking
+            ? "AI 수 계산 중"
+            : turn === "b"
+                ? "AI 차례"
+                : "대기 중";
+    const playerStatus = gameOver
+        ? "대국 종료"
+        : turn === "w" && !isThinking
+            ? "내 차례"
+            : "대기 중";
     useEffect(() => {
         if (!gameOver) {
             previousFocusRef.current?.focus?.({ preventScroll: true });
@@ -440,6 +452,10 @@ export default function Board({ chess = {} }) {
         return () => {
             window.cancelAnimationFrame(frame);
             document.removeEventListener("keydown", onKeyDown);
+            if (document.activeElement instanceof HTMLElement &&
+                document.activeElement.closest(".promotionMenu")) {
+                boardRef.current?.focus({ preventScroll: true });
+            }
         };
     }, [promotionData, cancelPromotion]);
 
@@ -539,7 +555,7 @@ export default function Board({ chess = {} }) {
                         <div className="playerName">{profile.name || currentBot}</div>
                         <div className="playerMeta">BOT · Lv.{profile.level ?? 1} · {botData[currentBot]?.rating ?? 0} 레이팅</div>
                     </div>
-                    <div className="playerClock">{isThinking ? "● THINKING" : "READY"}</div>
+                    <div className="playerClock" role="status" aria-live="polite">{opponentStatus}</div>
                 </div>
                 <SpeechBubble key={chess.dialogKey} text={dialog} hide={!dialog} />
                 <div className={`playerCard selfCard avatar-frame-${avatarFrame}`}>
@@ -555,15 +571,14 @@ export default function Board({ chess = {} }) {
                             <span className="ratingSuffix">레이팅</span>
                         </div>
                     </div>
-                    <div className="playerClock">{gameOver ? "FINISHED" : "YOUR TURN"}</div>
+                    <div className="playerClock" role="status" aria-live="polite">{playerStatus}</div>
                 </div>
             </div>
 
             <div className="evaluationBarRow">
                 <div className="evaluationLabel">평가</div>
-                <div className="evaluationValue">
-                    {evaluation > 0 ? "+" : ""}
-                    {evaluation.toFixed(2)}
+                <div className="evaluationValue" aria-label={lastAnalysis ? `평가 ${evaluation.toFixed(2)}` : "아직 평가된 수가 없습니다."}>
+                    {lastAnalysis ? <>{evaluation > 0 ? "+" : ""}{evaluation.toFixed(2)}</> : "—"}
                 </div>
 
                 {lastAnalysis?.side === "player" && (
