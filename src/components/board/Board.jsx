@@ -446,6 +446,22 @@ export default function Board({ chess = {} }) {
             if (event.key === "Escape") {
                 event.preventDefault();
                 cancelPromotion();
+                return;
+            }
+            if (event.key !== "Tab") return;
+            const controls = Array.from(
+                promotionFirstRef.current?.closest(".promotionMenu")
+                    ?.querySelectorAll("button:not(:disabled)") || []
+            );
+            if (!controls.length) return;
+            const first = controls[0];
+            const last = controls[controls.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
             }
         };
         document.addEventListener("keydown", onKeyDown);
@@ -769,7 +785,12 @@ export default function Board({ chess = {} }) {
             </div>
 
             {promotionData && (
-                <div className="promotionBackdrop">
+                <div
+                    className="promotionBackdrop"
+                    onMouseDown={event => {
+                        if (event.target === event.currentTarget) cancelPromotion();
+                    }}
+                >
                     <section className="promotionMenu" role="dialog" aria-modal="true" aria-labelledby="promotion-title">
                         <div className="promotionHeading">
                             <span id="promotion-title">승격할 기물을 선택하세요</span>
