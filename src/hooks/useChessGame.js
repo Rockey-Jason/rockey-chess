@@ -1736,8 +1736,17 @@ const say = useCallback(
     ]
   );
 
-  const clickSquare =
-    selectSquare;
+  const clickSquare = selectSquare;
+
+  const clearSelection = useCallback(() => {
+    setSelected(null);
+    setMoves([]);
+    setPromotionData(null);
+  }, []);
+
+  const cancelPromotion = useCallback(() => {
+    setPromotionData(null);
+  }, []);
 
   const dragMove = useCallback(
     (from, to) => {
@@ -2082,9 +2091,12 @@ const say = useCallback(
             .toISOString()
             .slice(0, 10)}.pgn`;
 
+        document.body.appendChild(a);
         a.click();
+        a.remove();
 
-        URL.revokeObjectURL(url);
+        // Let the browser start consuming the Blob before releasing its URL.
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       },
       [game]
     );
@@ -2203,9 +2215,11 @@ const say = useCallback(
 
     clickSquare,
     selectSquare,
+    clearSelection,
     dragMove,
 
     choosePromotion,
+    cancelPromotion,
 
     makeMove,
     undoMove,
