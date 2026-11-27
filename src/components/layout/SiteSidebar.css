@@ -22,3 +22,18 @@
 .sideWallet strong{color:#efd59e}
 .sideAvatar{border:1px solid rgba(232,201,133,.17);box-shadow:0 5px 15px rgba(0,0,0,.2)}
 @media(prefers-reduced-motion:reduce){.siteSidebar,.siteNavItem,.navIcon,.brandMark{transition:none!important}}
+
+
+/* Collapsed navigation remains a real layout state, not just an icon state. */
+.siteSidebar.collapsed{width:78px}
+.siteSidebar .siteNavItem:focus-visible,
+.siteSidebar .collapseButton:focus-visible{
+  outline:2px solid rgba(232,201,133,.9);
+  outline-offset:3px;
+}
+@media(max-width:900px){
+  .siteSidebar,.siteSidebar.collapsed{width:72px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .siteSidebar,.siteNavItem,.navIcon,.brandMark,.collapseButton{transition:none!important}
+}
