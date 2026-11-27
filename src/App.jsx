@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useState } from "react";
 import Chess from "./pages/Chess.jsx";
 import Login from "./pages/Login.jsx";
 import Shop from "./pages/Shop.jsx";
@@ -22,12 +23,16 @@ function DoriMainSiteButton() {
 function Shell({ children }) {
   const location = useLocation();
   const isLogin = location.pathname === "/login";
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   if (isLogin) return <><DoriMainSiteButton />{children}</>;
   return (
     <>
       <DoriMainSiteButton />
-      <div className="appShell">
-        <SiteSidebar />
+      <div className={"appShell" + (sidebarCollapsed ? " navCollapsed" : "")}>
+        <SiteSidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(value => !value)}
+        />
         <main className="pageContent">{children}</main>
       </div>
     </>
