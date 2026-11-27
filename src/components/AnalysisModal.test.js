@@ -40,53 +40,38 @@ describe("analysis studio helpers", () => {
 });
 
 
-describe("analysis board move-route overlay", () => {
-  it("maps each UCI move to board coordinates and preserves the source move index", () => {
-    const routes = buildBoardRouteMap([
-      { uci: "e2e4", ply: 1, side: "player", quality: "great" },
-      { uci: "e7e5", ply: 2, side: "bot", quality: "good" },
-      { uci: "g1f3", ply: 3, side: "player", quality: "best" },
-    ]);
+describe("selected move board overlay", () => {
+  const moves = [
+    { uci: "e2e4", ply: 1, side: "player", quality: "great" },
+    { uci: "e7e5", ply: 2, side: "bot", quality: "good" },
+    { uci: "g1f3", ply: 3, side: "player", quality: "best" },
+    { uci: "b8c6", ply: 4, side: "bot", quality: "brilliant" },
+  ];
 
-    expect(routes).toHaveLength(2);
+  it("shows only the currently selected move, not earlier or later routes", () => {
+    const routes = buildBoardRouteMap(moves, 2);
+    expect(routes).toHaveLength(1);
     expect(routes[0]).toMatchObject({
-      index: 0, from: "e2", to: "e4", fromX: 450, fromY: 650, toX: 450, toY: 450,
+      index: 2,
+      from: "g1",
+      to: "f3",
+      fromX: 650,
+      fromY: 750,
+      toX: 550,
+      toY: 550,
+      quality: "best",
     });
-    expect(routes[1]).toMatchObject({
-      index: 2, from: "g1", to: "f3", fromX: 650, fromY: 750, toX: 550, toY: 550,
-    });
   });
 
-  it("keeps multiple arrivals on the same square separately identifiable", () => {
-    const routes = buildBoardRouteMap([
-      { uci: "e2e4", ply: 1, side: "player", quality: "best" },
-      { uci: "d2e4", ply: 2, side: "player", quality: "mistake" },
-    ]);
-    expect(routes.map(route => route.destinationStack)).toEqual([0, 1]);
+  it("shows the selected move even when it belongs to the opponent", () => {
+    const routes = buildBoardRouteMap(moves, 1);
+    expect(routes).toHaveLength(1);
+    expect(routes[0]).toMatchObject({ index: 1, from: "e7", to: "e5", quality: "good" });
   });
 
-  it("ignores malformed or incomplete move coordinates", () => {
-    expect(buildBoardRouteMap([
-      { uci: "e2", side: "player" },
-      { uci: "z9a1", side: "player" },
-      { san: "Nf3", side: "player" },
-      { uci: "e7e5", side: "bot" },
-    ])).toEqual([]);
-  });
-});
-
-
-describe("player-only board move routes", () => {
-  it("never shows the opponent's moves, while retaining original ply indices", () => {
-    const routes = buildBoardRouteMap([
-      { uci: "e2e4", ply: 1, side: "player", quality: "good" },
-      { uci: "e7e5", ply: 2, side: "bot", quality: "blunder" },
-      { uci: "g1f3", ply: 3, side: "player", quality: "great" },
-      { uci: "b8c6", ply: 4, side: "bot", quality: "brilliant" },
-    ]);
-
-    expect(routes.map(route => route.index)).toEqual([0, 2]);
-    expect(routes.map(route => route.from + route.to)).toEqual(["e2e4", "g1f3"]);
-    expect(routes.every(route => route.move.side === "player")).toBe(true);
+  it("renders no route when no move is selected or the coordinates are invalid", () => {
+    expect(buildBoardRouteMap(moves)).toEqual([]);
+    expect(buildBoardRouteMap([{ uci: "e2", side: "player" }], 0)).toEqual([]);
+    expect(buildBoardRouteMap([{ uci: "z9a1", side: "bot" }], 0)).toEqual([]);
   });
 });
