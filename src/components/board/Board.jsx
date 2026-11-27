@@ -90,7 +90,8 @@ export default function Board({ chess = {} }) {
         clearSelection = () => {},
         cancelPromotion = () => {},
         undoMove = () => {},
-        analysisBusy = false
+        analysisBusy = false,
+        analysisOpen = false
     } = chess;
 
     const profile = botData[currentBot] || botData.talc || {};
@@ -100,6 +101,8 @@ export default function Board({ chess = {} }) {
             previousFocusRef.current = null;
             return undefined;
         }
+        // The analysis studio owns focus while it is open above the result dialog.
+        if (analysisOpen) return undefined;
 
         previousFocusRef.current = document.activeElement instanceof HTMLElement
             ? document.activeElement
@@ -131,7 +134,7 @@ export default function Board({ chess = {} }) {
             window.clearTimeout(focusTimer);
             document.removeEventListener("keydown", trapFocus);
         };
-    }, [gameOver]);
+    }, [gameOver, analysisOpen]);
 
 
     useEffect(() => {
