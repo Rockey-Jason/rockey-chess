@@ -46,7 +46,6 @@ export default function Board({ chess = {} }) {
     const pointerFromRef = useRef(null);
     const pointerIdRef = useRef(null);
     const pointerCaptureTargetRef = useRef(null);
-    const pointerCanCommitRef = useRef(false);
     const suppressClickRef = useRef(false);
     const [customization, setCustomization] = useState({
         board_theme: "default",
@@ -357,7 +356,6 @@ export default function Board({ chess = {} }) {
         pointerFromRef.current = square;
         pointerIdRef.current = event.pointerId;
         pointerCaptureTargetRef.current = event.currentTarget;
-        pointerCanCommitRef.current = canCommitMove;
         suppressClickRef.current = false;
         setFocusedSquare(square);
 
@@ -380,8 +378,17 @@ export default function Board({ chess = {} }) {
         if (!from || !shouldHandleDragPointer(event, pointerIdRef.current)) return;
 
         const to = getSquareFromPointer(event);
-        const canCommitMove = pointerCanCommitRef.current;
         const captureTarget = pointerCaptureTargetRef.current;
+
+        // Re-check eligibility at release time, not pickup time. A player may
+        // pick up their piece while the AI is thinking and hold it until the
+        // AI finishes; the current turn decides whether the drop can commit.
+        const currentPiece = game.get(from);
+        const canCommitMove = canCommitPieceDrag(currentPiece, {
+            turn,
+            isThinking,
+            gameOver
+        });
 
         try {
             captureTarget?.releasePointerCapture?.(event.pointerId);
@@ -390,7 +397,6 @@ export default function Board({ chess = {} }) {
         pointerFromRef.current = null;
         pointerIdRef.current = null;
         pointerCaptureTargetRef.current = null;
-        pointerCanCommitRef.current = false;
         setDragVisual(null);
 
         if (to && from !== to) {
