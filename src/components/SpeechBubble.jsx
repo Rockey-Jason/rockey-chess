@@ -77,21 +77,23 @@ export default function SpeechBubble({
     );
 
     return (
-        <div
-            className={`speechBubble ${visible ? "show" : "hide"} ${
-                typing ? "typing" : ""
-            }`}
-            style={{ width: `${measuredWidth}px` }}
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            aria-hidden={!visible}
-        >
-            <span className="speechText">
-                {displayText}
-                {typing && <span className="speechCursor">▌</span>}
+        <>
+            <div
+                className={`speechBubble ${visible ? "show" : "hide"} ${
+                    typing ? "typing" : ""
+                }`}
+                style={{ width: `${measuredWidth}px` }}
+                aria-hidden="true"
+            >
+                <span className="speechText">
+                    {displayText}
+                    {typing && <span className="speechCursor">▌</span>}
+                </span>
+                <span className="speechTail" />
+            </div>
+            <span className="speechSrOnly" role="status" aria-live="polite" aria-atomic="true">
+                {visible ? text : ""}
             </span>
-            <span className="speechTail" />
-        </div>
+        </>
     );
 }
