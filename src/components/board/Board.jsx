@@ -9,7 +9,7 @@ import SpeechBubble from "../SpeechBubble";
 import botData from "../../data/botData";
 import RatingChange from "../RatingChange";
 import { supabase } from "../../supabase";
-import { canStartPieceDrag, canCommitPieceDrag } from "./dragRules";
+import { canStartPieceDrag, canCommitPieceDrag, shouldHandleDragPointer } from "./dragRules";
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const pieceNames = { k: "킹", q: "퀸", r: "룩", b: "비숍", n: "나이트", p: "폰" };
@@ -44,6 +44,8 @@ export default function Board({ chess = {} }) {
     const promotionFirstRef = useRef(null);
     const previousFocusRef = useRef(null);
     const pointerFromRef = useRef(null);
+    const pointerIdRef = useRef(null);
+    const pointerCaptureTargetRef = useRef(null);
     const pointerCanCommitRef = useRef(false);
     const suppressClickRef = useRef(false);
     const [customization, setCustomization] = useState({
@@ -303,7 +305,11 @@ export default function Board({ chess = {} }) {
     };
 
     const updateDragVisual = (event) => {
-        if (!pointerFromRef.current || !boardRef.current) return;
+        if (
+            !pointerFromRef.current ||
+            !boardRef.current ||
+            !shouldHandleDragPointer(event, pointerIdRef.current)
+        ) return;
 
         const pointer = getBoardPointer(event);
         if (!pointer) return;
@@ -319,40 +325,27 @@ export default function Board({ chess = {} }) {
         });
     };
 
-    // Drag listeners are installed once per gesture, not once per pointer frame.
-    // The dragged piece state can update at display refresh rate without repeatedly
-    // tearing down and re-registering global listeners.
-    const isDragging = Boolean(dragVisual);
-    useEffect(() => {
-        if (!isDragging || !pointerFromRef.current) return;
-
-        const handlePointerMove = event => updateDragVisual(event);
-        const handlePointerUp = event => finishPointerDrag(event);
-        const handlePointerCancel = event => cancelPointerDrag(event);
-
-        window.addEventListener("pointermove", handlePointerMove, { passive: true });
-        window.addEventListener("pointerup", handlePointerUp);
-        window.addEventListener("pointercancel", handlePointerCancel);
-
-        return () => {
-            window.removeEventListener("pointermove", handlePointerMove);
-            window.removeEventListener("pointerup", handlePointerUp);
-            window.removeEventListener("pointercancel", handlePointerCancel);
-        };
-    }, [isDragging]);
-
     const startPointerDrag = (event, square) => {
+        // Ignore secondary fingers and non-primary mouse buttons so one gesture
+        // owns the board until its pointer is released or cancelled.
+        if (!shouldHandleDragPointer(event)) return;
+        if (pointerFromRef.current) return;
+
         const p = game.get(square);
 
-        // Any occupied square can be picked up, including the opponent's pieces
-        // and pieces touched while the AI is thinking. Only the player's legal
-        // turn is allowed to submit an actual move when the gesture ends.
+        // Any occupied square can be picked up. A drag only changes the game
+        // when the selected side is allowed to move and the destination is legal.
         if (!canStartPieceDrag(p, { gameOver, promotionOpen: Boolean(promotionData) })) return;
 
+        measureBoardBorder();
+        const pointer = getBoardPointer(event);
+        if (!pointer || !pointer.size) return;
+
         pointerFromRef.current = square;
+        pointerIdRef.current = event.pointerId;
+        pointerCaptureTargetRef.current = event.currentTarget;
         pointerCanCommitRef.current = canCommitPieceDrag(p, { turn, isThinking, gameOver });
         suppressClickRef.current = false;
-        measureBoardBorder();
         setFocusedSquare(square);
 
         if (pointerCanCommitRef.current) {
@@ -361,13 +354,8 @@ export default function Board({ chess = {} }) {
             clearSelection();
         }
 
-        const pointer = getBoardPointer(event);
-        if (!pointer) {
-            pointerFromRef.current = null;
-            pointerCanCommitRef.current = false;
-            return;
-        }
-
+        // Capture on the source square, while move/up/cancel are handled once
+        // by the board. This keeps mouse and touch gestures consistent.
         try {
             event.currentTarget.setPointerCapture?.(event.pointerId);
         } catch {}
@@ -382,34 +370,49 @@ export default function Board({ chess = {} }) {
 
     const finishPointerDrag = (event) => {
         const from = pointerFromRef.current;
-        if (!from) return;
+        if (!from || !shouldHandleDragPointer(event, pointerIdRef.current)) return;
 
         const to = getSquareFromPointer(event);
         const canCommitMove = pointerCanCommitRef.current;
+        const captureTarget = pointerCaptureTargetRef.current;
 
         try {
-            event.currentTarget.releasePointerCapture?.(event.pointerId);
+            captureTarget?.releasePointerCapture?.(event.pointerId);
         } catch {}
 
         pointerFromRef.current = null;
+        pointerIdRef.current = null;
+        pointerCaptureTargetRef.current = null;
         pointerCanCommitRef.current = false;
         setDragVisual(null);
 
         if (to && from !== to) {
+            // Prevent the synthetic click after a drag from selecting the
+            // destination square a second time.
             suppressClickRef.current = true;
             if (canCommitMove) dragMove(from, to);
         } else if (to === from) {
+            // A press without movement remains a normal tap/click selection.
             suppressClickRef.current = false;
+        } else {
+            suppressClickRef.current = true;
         }
     };
 
     const cancelPointerDrag = (event) => {
-        pointerFromRef.current = null;
-        pointerCanCommitRef.current = false;
-        setDragVisual(null);
+        if (!shouldHandleDragPointer(event, pointerIdRef.current)) return;
+
+        const captureTarget = pointerCaptureTargetRef.current;
         try {
-            event.currentTarget.releasePointerCapture?.(event.pointerId);
+            captureTarget?.releasePointerCapture?.(event.pointerId);
         } catch {}
+
+        pointerFromRef.current = null;
+        pointerIdRef.current = null;
+        pointerCaptureTargetRef.current = null;
+        pointerCanCommitRef.current = false;
+        suppressClickRef.current = true;
+        setDragVisual(null);
     };
 
     const squares = [];
