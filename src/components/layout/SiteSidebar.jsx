@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../supabase";
 import "./SiteSidebar.css";
 
@@ -12,20 +12,56 @@ const items = [
   { to: "/customize", icon: "✦", label: "꾸미기", hint: "보드 · 기물 · 프로필" },
 ];
 
-export default function SiteSidebar() {
+export default function SiteSidebar({ collapsed = false, onToggle = () => {} }) {
   const [profile, setProfile] = useState(null);
-  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!alive || !user) return;
-      const loginId = user.user_metadata?.login_id || user.user_metadata?.username || user.email?.split("@")[0] || user.id;
-      const { data } = await supabase.from("users").select("name,login_id,chess_rating,profile_image,rock_king_coin").eq("login_id", loginId).maybeSingle();
-      if (alive) setProfile({ ...data, loginId });
-    })();
-    return () => { alive = false; };
+    let requestId = 0;
+
+    const loadProfile = async user => {
+      const request = ++requestId;
+      if (!user) {
+        if (alive) setProfile(null);
+        return;
+      }
+
+      // The users table is protected by auth.uid() = users.user_id.
+      const { data, error } = await supabase
+        .from("users")
+        .select("name,login_id,chess_rating,profile_image,rock_king_coin")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!alive || request !== requestId) return;
+      if (error) console.warn("Chess navigation profile:", error.message);
+      const loginId = data?.login_id ||
+        user.user_metadata?.login_id ||
+        user.user_metadata?.username ||
+        user.email?.split("@")[0] ||
+        user.id;
+      setProfile({ ...(data || {}), loginId });
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Defer the profile request so the auth callback itself stays synchronous.
+      Promise.resolve().then(() => loadProfile(session?.user || null));
+    });
+
+    supabase.auth.getUser()
+      .then(({ data, error }) => {
+        if (error) console.warn("Chess navigation authentication:", error.message);
+        return loadProfile(data?.user || null);
+      })
+      .catch(error => {
+        if (alive) console.warn("Chess navigation profile load failed:", error);
+      });
+
+    return () => {
+      alive = false;
+      requestId += 1;
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
@@ -33,13 +69,27 @@ export default function SiteSidebar() {
       <div className="siteBrand">
         <div className="brandMark">R</div>
         {!collapsed && <div><strong>ROCKEY</strong><span>CHESS</span></div>}
-        <button className="collapseButton" onClick={() => setCollapsed(v => !v)} aria-label="메뉴 접기">{collapsed ? "›" : "‹"}</button>
+        <button
+          className="collapseButton"
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "메뉴 펼치기" : "메뉴 접기"}
+          title={collapsed ? "메뉴 펼치기" : "메뉴 접기"}
+        >{collapsed ? "›" : "‹"}</button>
       </div>
 
       {!collapsed && <div className="navCaption">PLAY</div>}
       <nav className="siteNav">
         {items.map(item => (
-          <NavLink key={item.to} to={item.to} end={item.to === "/"} className={({ isActive }) => `siteNavItem ${isActive ? "active" : ""}`}>
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to === "/"}
+            aria-label={item.label}
+            title={collapsed ? item.label : undefined}
+            className={({ isActive }) => `siteNavItem ${isActive ? "active" : ""}`}
+          >
             <span className="navIcon">{item.icon}</span>
             {!collapsed && <span className="navText"><b>{item.label}</b><small>{item.hint}</small></span>}
             {!collapsed && <span className="navArrow">›</span>}
@@ -57,7 +107,7 @@ export default function SiteSidebar() {
 
       <div className="sideProfile">
         <div className="sideAvatar">{profile?.profile_image ? <img src={profile.profile_image} alt="" /> : "♙"}</div>
-        {!collapsed && <div><b>{profile?.nickname || profile?.loginId || "게스트"}</b><small>{Number(profile?.chess_rating || 0).toLocaleString()} RATING</small></div>}
+        {!collapsed && <div><b>{profile?.name || profile?.loginId || "게스트"}</b><small>{Number(profile?.chess_rating || 0).toLocaleString()} RATING</small></div>}
       </div>
     </aside>
   );
