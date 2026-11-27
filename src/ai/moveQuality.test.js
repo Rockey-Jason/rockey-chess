@@ -30,6 +30,19 @@ describe("chess move quality classification", () => {
       .toBe("book");
   });
 
+  it("never labels a delivered checkmate as a blunder", () => {
+    const matingMove = { piece: "q", color: "w", to: "h7", san: "Qh7#" };
+    const checkmatedPosition = { isCheckmate: () => true };
+    expect(classifyMove(100000, false, matingMove, openPosition, checkmatedPosition, {}))
+      .toBe("best");
+  });
+
+  it("recognizes a mating SAN even if the terminal position flag is unavailable", () => {
+    const matingMove = { piece: "q", color: "w", to: "h7", san: "Qh7#" };
+    expect(classifyMove(100000, false, matingMove, openPosition, quietPosition, {}))
+      .toBe("best");
+  });
+
   it("recognizes large evaluation losses as blunders", () => {
     const move = { piece: "q", color: "w", to: "a4", san: "Qa4" };
     expect(classifyMove(260, false, move, openPosition, quietPosition, {}))
