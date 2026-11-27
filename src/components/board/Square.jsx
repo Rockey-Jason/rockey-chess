@@ -15,10 +15,17 @@ function Square({
     selected,
     lastMove,
     check,
-    coordinate
+    coordinate,
+    id,
+    ariaLabel,
+    ariaSelected = false
 }) {
     return (
         <div
+            id={id}
+            role="gridcell"
+            aria-label={ariaLabel}
+            aria-selected={ariaSelected}
             className={
                 `square
                 ${color}
