@@ -1,3 +1,10 @@
+export function shouldHandleDragPointer(event, activePointerId = null) {
+    if (!event) return false;
+    if (activePointerId !== null) return event.pointerId === activePointerId;
+    if (event.isPrimary === false) return false;
+    return event.pointerType !== "mouse" || event.button === 0;
+}
+
 export function canStartPieceDrag(piece, { gameOver = false, promotionOpen = false } = {}) {
     return Boolean(piece) && !gameOver && !promotionOpen;
 }
