@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import "./Sidebar.css";
 import botData from "../../data/botData";
 import AnalysisModal from "../AnalysisModal";
@@ -41,6 +43,11 @@ const qualityOrder = [
 ];
 
 export default function Sidebar({ chess = {} }) {
+    const [pendingAction, setPendingAction] = useState("");
+    const cancelConfirmRef = useRef(null);
+    const acceptConfirmRef = useRef(null);
+    const historyRef = useRef(null);
+
     const {
         history = [],
         undoMove = () => {},
@@ -71,6 +78,48 @@ export default function Sidebar({ chess = {} }) {
         rockKingCoin = 0
     } = chess;
 
+    useEffect(() => {
+        if (!pendingAction) return undefined;
+        const frame = window.requestAnimationFrame(() => cancelConfirmRef.current?.focus());
+        const onKeyDown = event => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                setPendingAction("");
+                return;
+            }
+            if (event.key !== "Tab") return;
+            if (event.shiftKey && document.activeElement === cancelConfirmRef.current) {
+                event.preventDefault();
+                acceptConfirmRef.current?.focus();
+            } else if (!event.shiftKey && document.activeElement === acceptConfirmRef.current) {
+                event.preventDefault();
+                cancelConfirmRef.current?.focus();
+            }
+        };
+        document.addEventListener("keydown", onKeyDown);
+        return () => {
+            window.cancelAnimationFrame(frame);
+            document.removeEventListener("keydown", onKeyDown);
+        };
+    }, [pendingAction]);
+
+    useEffect(() => {
+        const element = historyRef.current;
+        if (!element) return;
+        const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        element.scrollTo({ top: element.scrollHeight, behavior: reducedMotion ? "auto" : "smooth" });
+    }, [analysisMoves.length]);
+
+    const confirmMessage = pendingAction === "resign"
+        ? "기권하면 이번 대국은 패배로 기록되고 레이팅이 반영됩니다."
+        : "무승부로 종료하면 이번 대국은 무승부로 기록되고 레이팅이 반영됩니다.";
+
+    const confirmPendingAction = () => {
+        if (pendingAction === "resign") resign();
+        if (pendingAction === "draw") offerDraw();
+        setPendingAction("");
+    };
+
     return (
         <aside className="sidebar">
             <div className="sidebarTitle">
@@ -92,6 +141,7 @@ export default function Sidebar({ chess = {} }) {
                     return (
                         <button
                             key={id}
+                            type="button"
                             disabled={lockedByRating || lockedByGame}
                             className={
                                 currentBot === id
@@ -99,16 +149,23 @@ export default function Sidebar({ chess = {} }) {
                                     : "botButton"
                             }
                             onClick={() => setBot(id)}
+                            aria-pressed={currentBot === id}
                             title={
                                 lockedByGame
-                                    ? "현재 대결이 끝난 후 선택할 수 있습니다."
-                                    : undefined
+                                    ? "현재 대국이 끝난 후 AI를 변경할 수 있습니다."
+                                    : lockedByRating
+                                        ? `필요 레이팅: ${req[id].toLocaleString()}`
+                                        : `${botData[id].name} 선택`
                             }
                         >
-                            <span>{botData[id].name}</span>
-                            {lockedByRating && (
-                                <small>⭐ {req[id]}</small>
-                            )}
+                            <img className="botPortrait" src={botData[id].image} alt="" loading="lazy" />
+                            <span className="botInfo">
+                                <b>{botData[id].name}</b>
+                                <small>Lv.{botData[id].level} · {Number(botData[id].rating).toLocaleString()} 레이팅</small>
+                            </span>
+                            <span className="botAccess">
+                                {currentBot === id ? "선택됨" : lockedByGame ? "대국 중" : lockedByRating ? `🔒 ${req[id].toLocaleString()}` : "선택"}
+                            </span>
                         </button>
                     );
                 })}
@@ -118,9 +175,11 @@ export default function Sidebar({ chess = {} }) {
 
             <div className="chessActions">
                 <button
+                    type="button"
                     className="actionButton"
                     onClick={undoMove}
-                    disabled={isThinking || matchLocked}
+                    disabled={isThinking || gameOver || history.length === 0}
+                    title={history.length >= 2 ? "나와 AI의 마지막 수를 되돌립니다." : "첫 수를 되돌립니다."}
                 >
                     ↩ 되돌리기
                 </button>
@@ -134,19 +193,23 @@ export default function Sidebar({ chess = {} }) {
                 </button>
 
                 <button
+                    type="button"
                     className="actionButton danger"
-                    onClick={resign}
-                    disabled={isThinking || gameOver}
+                    onClick={() => setPendingAction("resign")}
+                    disabled={!matchLocked || gameOver}
+                    title={!matchLocked ? "한 수 이상 진행한 뒤 기권할 수 있습니다." : "현재 대국을 기권합니다."}
                 >
                     🏳 기권
                 </button>
 
                 <button
+                    type="button"
                     className="actionButton"
-                    onClick={offerDraw}
-                    disabled={isThinking || gameOver}
+                    onClick={() => setPendingAction("draw")}
+                    disabled={!matchLocked || gameOver}
+                    title={!matchLocked ? "한 수 이상 진행한 뒤 무승부로 종료할 수 있습니다." : "현재 대국을 무승부로 종료합니다."}
                 >
-                    🤝 무승부
+                    🤝 무승부 선언
                 </button>
             </div>
 
@@ -202,7 +265,7 @@ export default function Sidebar({ chess = {} }) {
                     <span>{history.length} ply</span>
                 </div>
 
-                <div className="history">
+                <div className="history" ref={historyRef} role="log" aria-label="대국 기보" aria-live="polite" aria-relevant="additions text">
                     {analysisMoves.length === 0 ? (
                         <div className="emptyHistory">
                             수를 두면 분석 결과가 표시됩니다.
@@ -218,7 +281,7 @@ export default function Sidebar({ chess = {} }) {
                                 key={`${move.uci}-${index}`}
                             >
                                 <span className="moveNo">
-                                    {Math.ceil(move.ply / 2)}.
+                                    {Math.ceil(move.ply / 2)}{move.side === "bot" ? "…" : "."}
                                 </span>
                                 <span className="moveSan">
                                     {move.san}
@@ -234,6 +297,12 @@ export default function Sidebar({ chess = {} }) {
                     )}
                 </div>
             </section>
+
+            {history.length > 0 && (
+                <button type="button" className="pgnButton" onClick={() => downloadPGN(gameSummary)} disabled={!gameSummary?.pgn}>
+                    ↓ 기보 PGN 다운로드
+                </button>
+            )}
 
             {gameOver && (
                 <div style={{display:"grid",gap:8,marginTop:12}}>
@@ -253,5 +322,30 @@ export default function Sidebar({ chess = {} }) {
                 progress={analysisProgress}
             />
         </aside>
+        {pendingAction && createPortal(
+            <div className="sidebarConfirmBackdrop" onMouseDown={event => {
+                if (event.target === event.currentTarget) setPendingAction("");
+            }}>
+                <section
+                    className="sidebarConfirmDialog"
+                    role="alertdialog"
+                    aria-modal="true"
+                    aria-labelledby="chess-confirm-title"
+                    aria-describedby="chess-confirm-description"
+                >
+                    <span className="sidebarConfirmIcon" aria-hidden="true">{pendingAction === "resign" ? "⚑" : "🤝"}</span>
+                    <h2 id="chess-confirm-title">{pendingAction === "resign" ? "기권하시겠습니까?" : "무승부로 종료하시겠습니까?"}</h2>
+                    <p id="chess-confirm-description">{confirmMessage}</p>
+                    <div className="sidebarConfirmActions">
+                        <button type="button" ref={cancelConfirmRef} className="confirmCancel" onClick={() => setPendingAction("")}>계속 대국하기</button>
+                        <button type="button" ref={acceptConfirmRef} className={pendingAction === "resign" ? "confirmDanger" : "confirmAccept"} onClick={confirmPendingAction}>
+                            {pendingAction === "resign" ? "기권 확정" : "무승부 확정"}
+                        </button>
+                    </div>
+                </section>
+            </div>,
+            document.body
+        )}
+    </>
     );
 }
