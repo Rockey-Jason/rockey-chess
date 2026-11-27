@@ -317,24 +317,18 @@ export default function Board({ chess = {} }) {
         });
     };
 
-    // 드래그 중에는 특정 Square가 아니라 보드 전체에서 포인터를 추적한다.
-    // 이렇게 해야 커서가 다른 칸으로 이동해도 기물이 커서를 계속 따라간다.
+    // Drag listeners are installed once per gesture, not once per pointer frame.
+    // The dragged piece state can update at display refresh rate without repeatedly
+    // tearing down and re-registering global listeners.
+    const isDragging = Boolean(dragVisual);
     useEffect(() => {
-        if (!dragVisual || !pointerFromRef.current) return;
+        if (!isDragging || !pointerFromRef.current) return;
 
-        const handlePointerMove = (event) => {
-            updateDragVisual(event);
-        };
+        const handlePointerMove = event => updateDragVisual(event);
+        const handlePointerUp = event => finishPointerDrag(event);
+        const handlePointerCancel = event => cancelPointerDrag(event);
 
-        const handlePointerUp = (event) => {
-            finishPointerDrag(event);
-        };
-
-        const handlePointerCancel = (event) => {
-            cancelPointerDrag(event);
-        };
-
-        window.addEventListener("pointermove", handlePointerMove);
+        window.addEventListener("pointermove", handlePointerMove, { passive: true });
         window.addEventListener("pointerup", handlePointerUp);
         window.addEventListener("pointercancel", handlePointerCancel);
 
@@ -343,7 +337,7 @@ export default function Board({ chess = {} }) {
             window.removeEventListener("pointerup", handlePointerUp);
             window.removeEventListener("pointercancel", handlePointerCancel);
         };
-    }, [dragVisual]);
+    }, [isDragging]);
 
     const startPointerDrag = (event, square) => {
         const p = game.get(square);
