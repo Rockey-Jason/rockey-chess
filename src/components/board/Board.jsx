@@ -1,6 +1,6 @@
 import "./Board.css";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
 
 import Square from "./Square";
@@ -36,6 +36,7 @@ const QUALITY_LABELS = {
 export default function Board({ chess = {} }) {
     const boardRef = useRef(null);
     const gameOverRef = useRef(null);
+    const boardBorderRef = useRef(null);
     const [hiddenSquares, setHiddenSquares] = useState([]);
     const [animations, setAnimations] = useState([]);
     const [focusedSquare, setFocusedSquare] = useState("e2");
@@ -176,7 +177,7 @@ export default function Board({ chess = {} }) {
     const moveEffect = customization.move_effect || "default";
     const avatarFrame = customization.avatar_frame || "default";
     const playerTitle = customization.title || "default";
-    const game = new Chess(position || undefined);
+    const game = useMemo(() => new Chess(position || undefined), [position]);
 
     const getPiece = (square) => {
         const piece = game.get(square);
@@ -256,19 +257,31 @@ export default function Board({ chess = {} }) {
 
     const [dragVisual, setDragVisual] = useState(null);
 
+    const measureBoardBorder = () => {
+        if (!boardRef.current) return null;
+        const style = window.getComputedStyle(boardRef.current);
+        boardBorderRef.current = {
+            left: Number.parseFloat(style.borderLeftWidth) || 0,
+            right: Number.parseFloat(style.borderRightWidth) || 0,
+            top: Number.parseFloat(style.borderTopWidth) || 0,
+            bottom: Number.parseFloat(style.borderBottomWidth) || 0
+        };
+        return boardBorderRef.current;
+    };
+
     const getBoardPointer = (event) => {
         if (!boardRef.current) return null;
         const rect = boardRef.current.getBoundingClientRect();
-        const style = window.getComputedStyle(boardRef.current);
-        const left = Number.parseFloat(style.borderLeftWidth) || 0;
-        const right = Number.parseFloat(style.borderRightWidth) || 0;
-        const top = Number.parseFloat(style.borderTopWidth) || 0;
-        const bottom = Number.parseFloat(style.borderBottomWidth) || 0;
-        const width = Math.max(0, rect.width - left - right);
-        const height = Math.max(0, rect.height - top - bottom);
+        // Border geometry stays constant throughout a pointer gesture.
+        // Read computed style once at drag start instead of on every pointermove.
+        const border = boardBorderRef.current || measureBoardBorder() || {
+            left: 0, right: 0, top: 0, bottom: 0
+        };
+        const width = Math.max(0, rect.width - border.left - border.right);
+        const height = Math.max(0, rect.height - border.top - border.bottom);
         const size = width / 8;
-        const x = event.clientX - rect.left - left;
-        const y = event.clientY - rect.top - top;
+        const x = event.clientX - rect.left - border.left;
+        const y = event.clientY - rect.top - border.top;
         return {
             x,
             y,
@@ -338,6 +351,7 @@ export default function Board({ chess = {} }) {
 
         pointerFromRef.current = square;
         suppressClickRef.current = false;
+        measureBoardBorder();
         setFocusedSquare(square);
         selectSquare(square);
 
