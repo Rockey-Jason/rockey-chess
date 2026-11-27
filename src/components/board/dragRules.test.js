@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canCommitPieceDrag, canStartPieceDrag } from "./dragRules";
+import { canCommitPieceDrag, canStartPieceDrag, shouldHandleDragPointer } from "./dragRules";
 
 describe("board piece dragging", () => {
     it("lets either color be picked up regardless of whose turn it is", () => {
@@ -27,5 +27,22 @@ describe("board piece dragging", () => {
         const whitePawn = { color: "w", type: "p" };
         expect(canCommitPieceDrag(whitePawn, { isThinking: true })).toBe(false);
         expect(canCommitPieceDrag(whitePawn, { gameOver: true })).toBe(false);
+    });
+});
+
+describe("mouse and touch pointer ownership", () => {
+    it("accepts the primary mouse button and touch pointer", () => {
+        expect(shouldHandleDragPointer({ pointerId: 1, pointerType: "mouse", button: 0 })).toBe(true);
+        expect(shouldHandleDragPointer({ pointerId: 2, pointerType: "touch", button: 0 })).toBe(true);
+    });
+
+    it("ignores right-click and secondary touch pointers", () => {
+        expect(shouldHandleDragPointer({ pointerId: 1, pointerType: "mouse", button: 2 })).toBe(false);
+        expect(shouldHandleDragPointer({ pointerId: 2, pointerType: "touch", isPrimary: false })).toBe(false);
+    });
+
+    it("only updates or finishes the pointer that started the drag", () => {
+        expect(shouldHandleDragPointer({ pointerId: 7 }, 7)).toBe(true);
+        expect(shouldHandleDragPointer({ pointerId: 8 }, 7)).toBe(false);
     });
 });
