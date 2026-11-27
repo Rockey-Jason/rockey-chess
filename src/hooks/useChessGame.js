@@ -105,14 +105,49 @@ function playerEval(result, color) {
     : -cp;
 }
 
+function positionEval(result, color, position) {
+  if (position?.isCheckmate?.()) {
+    const winner = position.turn() === "w" ? "b" : "w";
+    return winner === color ? 100000 : -100000;
+  }
+  if (position?.isDraw?.()) return 0;
+  return playerEval(result, color);
+}
+
+function mateForPosition(result, position) {
+  if (position?.isCheckmate?.()) {
+    return {
+      moves: 0,
+      winner: position.turn() === "w" ? "black" : "white"
+    };
+  }
+  if (result?.mate === null || result?.mate === undefined) return null;
+  return {
+    moves: Math.abs(Number(result.mate)),
+    winner: positionEval(result, "w", position) >= 0 ? "white" : "black"
+  };
+}
 
 async function getLoginIdAndProfile() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { user: null, loginId: null, profile: {} };
-  const loginId = user.user_metadata?.login_id || user.user_metadata?.username || user.email?.split("@")[0] || user.id;
-  const { data, error } = await supabase.from("users").select("*").eq("login_id", loginId).maybeSingle();
-  if (error) console.warn("users(login_id) lookup failed", error);
-  return { user, loginId, profile: data || {} };
+
+  // The signed-in auth ID is the stable owner key protected by users RLS.
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error) console.warn("users(user_id) lookup failed", error);
+  const profile = data || {};
+  const loginId = profile.login_id ||
+    user.user_metadata?.login_id ||
+    user.user_metadata?.username ||
+    user.email?.split("@")[0] ||
+    user.id;
+
+  return { user, loginId, profile };
 }
 export default function useChessGame() {
   const gameRef = useRef(null);
@@ -143,6 +178,43 @@ export default function useChessGame() {
 
   const engineRef = useRef(null);
   const analysisEngineRef = useRef(null);
+  const positionAnalysisCacheRef = useRef(new Map());
+
+  // Reuse one Stockfish evaluation for each exact position throughout a game.
+  const getPositionAnalysis = useCallback((fen) => {
+    const cache = positionAnalysisCacheRef.current;
+    const cached = cache.get(fen);
+    if (cached) {
+      cache.delete(fen);
+      cache.set(fen, cached);
+      return cached;
+    }
+
+    const engine = analysisEngineRef.current;
+    if (!engine || engine.destroyed) {
+      return Promise.reject(new Error("Stockfish 분석 엔진이 준비되지 않았습니다."));
+    }
+
+    const task = engine.analyzePosition(fen, 16, {
+      multiPV: 3,
+      movetime: 180
+    }).then(result => {
+      if (cache.get(fen) === task) {
+        cache.delete(fen);
+        cache.set(fen, Promise.resolve(result));
+      }
+      return result;
+    }).catch(error => {
+      if (cache.get(fen) === task) cache.delete(fen);
+      throw error;
+    });
+
+    cache.set(fen, task);
+    while (cache.size > 180) {
+      cache.delete(cache.keys().next().value);
+    }
+    return task;
+  }, []);
 
   const mountedRef = useRef(true);
   const gameIdRef = useRef(0);
@@ -154,6 +226,7 @@ export default function useChessGame() {
   const moveHistoryRef = useRef([]);
 
   const ratingSavedRef = useRef(false);
+  const ratingSaveInFlightRef = useRef(false);
 
   /* =====================================================
      DIALOG SYSTEM
@@ -625,29 +698,29 @@ const say = useCallback(
       if (!analysisEngineRef.current || !move) return;
 
       try {
-        const before =
-          await analysisEngineRef.current.analyzePosition(beforeFen, 15, { multiPV: 3 });
+        const beforeGame = new Chess(beforeFen);
+        const afterGame = new Chess(afterFen);
+        const before = await getPositionAnalysis(beforeFen);
+        const after = afterGame.isGameOver()
+          ? null
+          : await getPositionAnalysis(afterFen);
 
-        const after =
-          await analysisEngineRef.current.analyzePosition(afterFen, 14, { multiPV: 1 });
-
-        const beforeScore = playerEval(before, move.color);
-        const afterScore = playerEval(after, move.color);
-        const cpl = Math.max(0, beforeScore - afterScore);
+        const beforeScore = positionEval(before, move.color, beforeGame);
+        const afterScore = positionEval(after, move.color, afterGame);
+        // A completed checkmate is a forced win, never a centipawn loss.
+        const cpl = afterGame.isCheckmate()
+          ? 0
+          : Math.max(0, beforeScore - afterScore);
         const acc = accuracyFromCpl(cpl);
 
         const bestMove = String(before.bestMove || "").toLowerCase();
         const playedMove = uci(move);
         const isBest = playedMove === bestMove;
 
-        const beforeGame = new Chess(beforeFen);
-        const afterGame = new Chess(afterFen);
-
-        let quality = classifyMove(cpl, isBest, move, beforeGame, afterGame, {
+        const quality = classifyMove(cpl, isBest, move, beforeGame, afterGame, {
           book: isBookMove(moveHistoryRef.current.slice(0, -1), move.san),
           secondCpl: secondBestLoss(before, move.color, beforeScore)
         });
-
 
         statsRef.current[quality] =
           (statsRef.current[quality] || 0) + 1;
@@ -662,10 +735,11 @@ const say = useCallback(
 
         setAccuracy(Number(overall.toFixed(1)));
 
-        const evalAfter =
-          after.mate !== null && after.mate !== undefined
-            ? Number(after.mate) > 0 ? 100 : -100
-            : playerEval(after, move.color) / 100;
+        const mate = mateForPosition(after, afterGame);
+        const whiteEvaluation = positionEval(after, "w", afterGame);
+        const evalAfter = mate
+          ? (mate.winner === "white" ? 10 : -10)
+          : whiteEvaluation / 100;
 
         const entry = {
           ply: playerAccuraciesRef.current.length,
@@ -677,6 +751,7 @@ const say = useCallback(
           accuracy: acc,
           bestMove,
           evaluation: Number(evalAfter.toFixed(2)),
+          mate,
           side: "player"
         };
 
@@ -689,7 +764,7 @@ const say = useCallback(
         console.warn("Player analysis failed", error);
       }
     },
-    [sayAnalysis, game]
+    [sayAnalysis, game, getPositionAnalysis]
   );
 
   const analyzeBotMove = useCallback(
@@ -697,27 +772,39 @@ const say = useCallback(
       if (!analysisEngineRef.current || !move) return;
 
       try {
-        const before =
-          await analysisEngineRef.current.analyzePosition(beforeFen, 14, { multiPV: 3 });
+        const beforeGame = new Chess(beforeFen);
+        const afterGame = new Chess(afterFen);
+        const before = await getPositionAnalysis(beforeFen);
+        const after = afterGame.isGameOver()
+          ? null
+          : await getPositionAnalysis(afterFen);
 
-        const after =
-          await analysisEngineRef.current.analyzePosition(afterFen, 13, { multiPV: 1 });
-
-        const beforeScore = playerEval(before, "b");
-        const afterScore = playerEval(after, "b");
-        const cpl = Math.max(0, beforeScore - afterScore);
+        const beforeScore = positionEval(before, "b", beforeGame);
+        const afterScore = positionEval(after, "b", afterGame);
+        const cpl = afterGame.isCheckmate()
+          ? 0
+          : Math.max(0, beforeScore - afterScore);
 
         const bestMove = String(before.bestMove || "").toLowerCase();
         const isBest = uci(move) === bestMove;
 
         const quality = classifyMove(
-              cpl,
-              isBest,
-              move,
-              new Chess(beforeFen),
-              new Chess(afterFen),
-              { book: isBookMove(game.history().slice(0, -1), move.san), secondCpl: secondBestLoss(before, "b", beforeScore) }
-            );
+          cpl,
+          isBest,
+          move,
+          beforeGame,
+          afterGame,
+          {
+            book: isBookMove(game.history().slice(0, -1), move.san),
+            secondCpl: secondBestLoss(before, "b", beforeScore)
+          }
+        );
+
+        const mate = mateForPosition(after, afterGame);
+        const whiteEvaluation = positionEval(after, "w", afterGame);
+        const evaluation = mate
+          ? (mate.winner === "white" ? 10 : -10)
+          : whiteEvaluation / 100;
 
         const entry = {
           ply: game.history().length,
@@ -728,7 +815,8 @@ const say = useCallback(
           cpl: Number(cpl.toFixed(1)),
           accuracy: accuracyFromCpl(cpl),
           bestMove,
-          evaluation: Number((playerEval(after, "w") / 100).toFixed(2)),
+          evaluation: Number(evaluation.toFixed(2)),
+          mate,
           side: "bot"
         };
 
@@ -741,7 +829,7 @@ const say = useCallback(
         console.warn("Bot analysis failed", error);
       }
     },
-    [game, sayAnalysis]
+    [game, sayAnalysis, getPositionAnalysis]
   );
 
   const finalizeSummary = useCallback(
@@ -825,29 +913,52 @@ const say = useCallback(
     async change => {
       if (
         ratingSavedRef.current ||
-        !change
+        ratingSaveInFlightRef.current ||
+        !Number.isFinite(Number(change)) ||
+        Number(change) === 0
       ) {
-        return;
+        return false;
       }
 
-      ratingSavedRef.current = true;
+      ratingSaveInFlightRef.current = true;
 
-      const next = Math.max(
-        0,
-        rating + change
-      );
+      try {
+        const { user, profile } = await getLoginIdAndProfile();
+        if (!user) throw new Error("로그인 세션을 확인할 수 없어 레이팅을 저장하지 못했습니다.");
 
-      setRating(next);
-      setPlayerProfile(prev => ({
-        ...prev,
-        rating: next
-      }));
-      setRatingChange(change);
-      setShowRatingChange(true);
+        const storedRating = Number(profile.chess_rating);
+        const baseRating = Number.isFinite(storedRating)
+          ? storedRating
+          : Math.max(0, Number(rating) || 0);
+        const next = Math.max(0, baseRating + Number(change));
 
-      const { loginId } = await getLoginIdAndProfile();
-      if (loginId) {
-        await supabase.from("users").update({ chess_rating: next }).eq("login_id", loginId);
+        // Update through the authenticated owner's stable key and verify that
+        // Supabase actually returned the changed row before updating local UI.
+        const { data, error } = await supabase
+          .from("users")
+          .update({ chess_rating: next })
+          .eq("user_id", user.id)
+          .select("chess_rating")
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!data) {
+          throw new Error("레이팅을 변경할 사용자 행을 찾지 못했습니다. 계정 정보를 확인해 주세요.");
+        }
+
+        const savedRating = Number(data.chess_rating);
+        const actualChange = savedRating - baseRating;
+        ratingSavedRef.current = true;
+        setRating(savedRating);
+        setPlayerProfile(prev => ({ ...prev, rating: savedRating }));
+        setRatingChange(actualChange);
+        setShowRatingChange(true);
+        return true;
+      } catch (error) {
+        console.error("[Rockey Chess] 레이팅 저장 실패:", error);
+        return false;
+      } finally {
+        ratingSaveInFlightRef.current = false;
       }
     },
     [rating]
@@ -1047,69 +1158,50 @@ const say = useCallback(
         const replayGame = new Chess(headers.FEN || undefined);
         setAnalysisProgress({ completed: 0, total: history.length, currentMove: 1, percent: 0 });
 
+        // Positions are evaluated once and reused by the preceding/following ply.
+        let before = await getPositionAnalysis(replayGame.fen());
+
         for (let i = 0; i < history.length; i += 1) {
           if (generation !== analysisGenerationRef.current) return [];
 
           const move = history[i];
           const beforeFen = replayGame.fen();
           const beforeHistory = replayGame.history();
+          const beforeGame = new Chess(beforeFen);
           replayGame.move({ from: move.from, to: move.to, ...(move.promotion ? { promotion: move.promotion } : {}) });
           const afterFen = replayGame.fen();
-
-          let before = await engine.analyzePosition(beforeFen, 18, { multiPV: 3, movetime: 320 });
-          if (generation !== analysisGenerationRef.current) return [];
-          let after = await engine.analyzePosition(afterFen, 17, { multiPV: 1, movetime: 240 });
-          if (generation !== analysisGenerationRef.current) return [];
-
-          const beforeGame = new Chess(beforeFen);
           const afterGame = new Chess(afterFen);
-          const measureMove = (beforeResult, afterResult) => {
-            const beforeScore = playerEval(beforeResult, move.color);
-            const afterScore = playerEval(afterResult, move.color);
-            const cpl = Math.max(0, beforeScore - afterScore);
-            const bestMove = String(beforeResult.bestMove || "").toLowerCase();
-            const secondGap = secondBestLoss(beforeResult, move.color, beforeScore);
-            const isBest = uci(move) === bestMove;
-            const quality = classifyMove(
-              cpl,
-              isBest,
-              move,
-              beforeGame,
-              afterGame,
-              {
-                book: isBookMove(beforeHistory, move.san),
-                secondCpl: secondGap
-              }
-            );
-            return { beforeScore, afterScore, cpl, bestMove, secondGap, isBest, quality };
-          };
 
-          let measured = measureMove(before, after);
-          const needsVerification =
-            ["brilliant", "great", "blunder"].includes(measured.quality) ||
-            (measured.isBest && measured.secondGap !== null && measured.secondGap >= 55 && measured.secondGap <= 185) ||
-            (measured.cpl >= 170 && measured.cpl <= 270);
+          if (!before) before = await getPositionAnalysis(beforeFen);
+          const after = afterGame.isGameOver()
+            ? null
+            : await getPositionAnalysis(afterFen);
+          if (generation !== analysisGenerationRef.current) return [];
 
-          // Verify standout and high-impact classifications with a deeper second pass.
-          if (needsVerification) {
-            before = await engine.analyzePosition(beforeFen, 22, { multiPV: 3, movetime: 700 });
-            if (generation !== analysisGenerationRef.current) return [];
-            after = await engine.analyzePosition(afterFen, 21, { multiPV: 1, movetime: 520 });
-            if (generation !== analysisGenerationRef.current) return [];
-            measured = measureMove(before, after);
-          }
+          const beforeScore = positionEval(before, move.color, beforeGame);
+          const afterScore = positionEval(after, move.color, afterGame);
+          const cpl = afterGame.isCheckmate()
+            ? 0
+            : Math.max(0, beforeScore - afterScore);
+          const bestMove = String(before.bestMove || "").toLowerCase();
+          const secondGap = secondBestLoss(before, move.color, beforeScore);
+          const isBest = uci(move) === bestMove;
+          const quality = classifyMove(
+            cpl,
+            isBest,
+            move,
+            beforeGame,
+            afterGame,
+            {
+              book: isBookMove(beforeHistory, move.san),
+              secondCpl: secondGap
+            }
+          );
 
-          const { cpl, bestMove, quality } = measured;
-
-          const whiteEvaluation = playerEval(after, "w");
-          const mate = after.mate !== null && after.mate !== undefined
-            ? {
-                moves: Math.abs(Number(after.mate)),
-                winner: whiteEvaluation >= 0 ? "white" : "black"
-              }
-            : null;
+          const whiteEvaluation = positionEval(after, "w", afterGame);
+          const mate = mateForPosition(after, afterGame);
           const evaluation = mate
-            ? (whiteEvaluation >= 0 ? 10 : -10)
+            ? (mate.winner === "white" ? 10 : -10)
             : Number((whiteEvaluation / 100).toFixed(2));
 
           analysis.push({
@@ -1125,6 +1217,8 @@ const say = useCallback(
             mate,
             side: move.color === "w" ? "player" : "bot"
           });
+
+          before = after;
 
           const completed = i + 1;
           setAnalysisProgress({
@@ -1177,7 +1271,7 @@ const say = useCallback(
     } finally {
       if (analysisTaskRef.current === task) analysisTaskRef.current = null;
     }
-  }, [analysisMoves, analysisReady, finalizeSummary, game, gameOver, gameSummary, result]);
+  }, [analysisMoves, analysisReady, finalizeSummary, game, gameOver, gameSummary, result, getPositionAnalysis]);
 
   const openAnalysis = useCallback(() => {
     if (!gameOver) return Promise.resolve([]);
@@ -1839,8 +1933,9 @@ const say = useCallback(
         );
       }
 
-      ratingSavedRef.current =
-        false;
+      ratingSavedRef.current = false;
+      ratingSaveInFlightRef.current = false;
+      positionAnalysisCacheRef.current.clear();
       savedGameRef.current = false;
       setAnalysisReady(false);
       setAnalysisOpen(false);
