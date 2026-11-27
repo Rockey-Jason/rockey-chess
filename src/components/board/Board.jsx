@@ -9,6 +9,7 @@ import SpeechBubble from "../SpeechBubble";
 import botData from "../../data/botData";
 import RatingChange from "../RatingChange";
 import { supabase } from "../../supabase";
+import { canStartPieceDrag, canCommitPieceDrag } from "./dragRules";
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const pieceNames = { k: "킹", q: "퀸", r: "룩", b: "비숍", n: "나이트", p: "폰" };
@@ -43,6 +44,7 @@ export default function Board({ chess = {} }) {
     const promotionFirstRef = useRef(null);
     const previousFocusRef = useRef(null);
     const pointerFromRef = useRef(null);
+    const pointerCanCommitRef = useRef(false);
     const suppressClickRef = useRef(false);
     const [customization, setCustomization] = useState({
         board_theme: "default",
@@ -341,23 +343,37 @@ export default function Board({ chess = {} }) {
 
     const startPointerDrag = (event, square) => {
         const p = game.get(square);
-        if (p?.color !== "w" || gameOver || isThinking) return;
+
+        // Any occupied square can be picked up, including the opponent's pieces
+        // and pieces touched while the AI is thinking. Only the player's legal
+        // turn is allowed to submit an actual move when the gesture ends.
+        if (!canStartPieceDrag(p, { gameOver, promotionOpen: Boolean(promotionData) })) return;
 
         pointerFromRef.current = square;
+        pointerCanCommitRef.current = canCommitPieceDrag(p, { turn, isThinking, gameOver });
         suppressClickRef.current = false;
         measureBoardBorder();
         setFocusedSquare(square);
-        selectSquare(square);
+
+        if (pointerCanCommitRef.current) {
+            selectSquare(square);
+        } else {
+            clearSelection();
+        }
 
         const pointer = getBoardPointer(event);
-        if (!pointer) return;
+        if (!pointer) {
+            pointerFromRef.current = null;
+            pointerCanCommitRef.current = false;
+            return;
+        }
 
         try {
             event.currentTarget.setPointerCapture?.(event.pointerId);
         } catch {}
 
         setDragVisual({
-            piece: `w${p.type.toUpperCase()}`,
+            piece: `${p.color}${p.type.toUpperCase()}`,
             x: pointer.x - pointer.size / 2,
             y: pointer.y - pointer.size / 2,
             size: pointer.size
@@ -369,17 +385,19 @@ export default function Board({ chess = {} }) {
         if (!from) return;
 
         const to = getSquareFromPointer(event);
+        const canCommitMove = pointerCanCommitRef.current;
 
         try {
             event.currentTarget.releasePointerCapture?.(event.pointerId);
         } catch {}
 
         pointerFromRef.current = null;
+        pointerCanCommitRef.current = false;
         setDragVisual(null);
 
         if (to && from !== to) {
             suppressClickRef.current = true;
-            dragMove(from, to);
+            if (canCommitMove) dragMove(from, to);
         } else if (to === from) {
             suppressClickRef.current = false;
         }
@@ -387,6 +405,7 @@ export default function Board({ chess = {} }) {
 
     const cancelPointerDrag = (event) => {
         pointerFromRef.current = null;
+        pointerCanCommitRef.current = false;
         setDragVisual(null);
         try {
             event.currentTarget.releasePointerCapture?.(event.pointerId);
@@ -637,7 +656,7 @@ export default function Board({ chess = {} }) {
                     role="grid"
                     aria-label={`체스판. ${turn === "w" ? "내 차례" : "AI 차례"}. 방향키로 칸을 이동하고 Enter로 선택할 수 있습니다.`}
                     aria-activedescendant={"chess-square-" + focusedSquare}
-                    aria-disabled={gameOver || isThinking || turn !== "w"}
+                    aria-disabled={gameOver}
                     aria-describedby="board-keyboard-help"
                     tabIndex={0}
                     onKeyDown={handleBoardKeyDown}
