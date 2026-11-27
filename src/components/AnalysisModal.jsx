@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Chess } from "chess.js";
 import "../styles/feature.css";
@@ -134,8 +134,10 @@ export function buildBoardRouteMap(moves = [], selectedIndex = -1) {
     toY: (toRank + 0.5) * 100,
     fromLeft: fromFile * 12.5 + 1.6,
     fromTop: fromRank * 12.5 + 7.5,
-    toLeft: toFile * 12.5 + 7,
-    toTop: toRank * 12.5 + 7,
+    // Keep the quality badge in the destination square's upper-right area,
+    // away from the piece's center silhouette.
+    toLeft: toFile * 12.5 + 9.1,
+    toTop: toRank * 12.5 + 3.4,
     originStack: 0,
     destinationStack: 0,
     quality: QUALITY_COLORS[move?.quality] ? move.quality : "good",
@@ -143,21 +145,49 @@ export function buildBoardRouteMap(moves = [], selectedIndex = -1) {
 }
 
 function ReviewBoard({ review, ply, moves = [], selectedIndex = -1 }) {
-  const [phase, setPhase] = useState("start");
+  const [pieceAnimation, setPieceAnimation] = useState(null);
   const move = review.move;
   const board = review.game.board();
   const route = useMemo(() => buildBoardRouteMap(moves, selectedIndex)[0] || null, [moves, selectedIndex]);
+  const animationKey = move ? `${ply}-${move.from}-${move.to}` : "";
+  const isAnimating = Boolean(move && pieceAnimation?.key === animationKey);
+  const isMoving = isAnimating && pieceAnimation.phase === "moving";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!move) {
-      setPhase("done");
+      setPieceAnimation(null);
       return undefined;
     }
-    setPhase("start");
-    const frame = window.requestAnimationFrame(() => setPhase("move"));
-    const timer = window.setTimeout(() => setPhase("done"), 430);
+
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (reducedMotion) {
+      setPieceAnimation(null);
+      return undefined;
+    }
+
+    const key = `${ply}-${move.from}-${move.to}`;
+    setPieceAnimation({ key, phase: "start" });
+
+    let firstFrame = 0;
+    let secondFrame = 0;
+
+    // Two frames guarantee the source-square position is painted before the
+    // destination transform is applied, including rapid previous/next clicks.
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        setPieceAnimation((current) =>
+          current?.key === key ? { ...current, phase: "moving" } : current
+        );
+      });
+    });
+
+    const timer = window.setTimeout(() => {
+      setPieceAnimation((current) => current?.key === key ? null : current);
+    }, 640);
+
     return () => {
-      window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
       window.clearTimeout(timer);
     };
   }, [move?.from, move?.to, ply]);
@@ -182,7 +212,7 @@ function ReviewBoard({ review, ply, moves = [], selectedIndex = -1 }) {
           const light = (row + col) % 2 === 0;
           const isFrom = move?.from === square;
           const isTo = move?.to === square;
-          const hideDestination = move && isTo && phase !== "done";
+          const hideDestination = isAnimating && isTo;
           return (
             <div key={square} className={"studioSquare " + (light ? "light" : "dark") + (isFrom || isTo ? " moveHighlight" : "")} aria-hidden="true">
               {piece && !hideDestination && (
@@ -229,15 +259,14 @@ function ReviewBoard({ review, ply, moves = [], selectedIndex = -1 }) {
               aria-hidden="true"
             >
               <b>{QUALITY_GLYPHS[route.move.quality] || "·"}</b>
-              <small>{moveNo}</small>
             </span>
           </>
         )}
 
-        {move && phase !== "done" && (
+        {isAnimating && (
           <img
-            key={ply + "-" + move.from + "-" + move.to}
-            className={"studioMovingPiece " + (phase === "move" ? "moving" : "")}
+            key={animationKey}
+            className={"studioMovingPiece" + (isMoving ? " moving" : "")}
             src={import.meta.env.BASE_URL + "pieces/" + move.color + move.piece.toUpperCase() + ".png"}
             alt=""
             style={{
