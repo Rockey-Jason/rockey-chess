@@ -78,6 +78,9 @@ export default function Sidebar({ chess = {} }) {
 
     useEffect(() => {
         if (!pendingAction) return undefined;
+        const previousFocus = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
         const frame = window.requestAnimationFrame(() => cancelConfirmRef.current?.focus());
         const onKeyDown = event => {
             if (event.key === "Escape") {
@@ -98,6 +101,9 @@ export default function Sidebar({ chess = {} }) {
         return () => {
             window.cancelAnimationFrame(frame);
             document.removeEventListener("keydown", onKeyDown);
+            if (previousFocus?.isConnected) {
+                previousFocus.focus({ preventScroll: true });
+            }
         };
     }, [pendingAction]);
 
@@ -183,6 +189,7 @@ export default function Sidebar({ chess = {} }) {
                 </button>
 
                 <button
+                    type="button"
                     className="actionButton"
                     onClick={resetGame}
                     disabled={matchLocked && !gameOver}
