@@ -57,9 +57,9 @@ export default function Board({ chess = {} }) {
         selected = null,
         moves = [],
         clickSquare = () => {},
-        selectSquare = () => {},
         lastMove = null,
         inCheck = false,
+        checkSquare = null,
         gameOver = false,
         currentBot = "talc",
         rating = 0,
@@ -109,7 +109,11 @@ export default function Board({ chess = {} }) {
             : "대기 중";
     useEffect(() => {
         if (!gameOver) {
-            previousFocusRef.current?.focus?.({ preventScroll: true });
+            if (previousFocusRef.current?.isConnected) {
+                previousFocusRef.current.focus({ preventScroll: true });
+            } else {
+                boardRef.current?.focus({ preventScroll: true });
+            }
             previousFocusRef.current = null;
             return undefined;
         }
@@ -179,26 +183,6 @@ export default function Board({ chess = {} }) {
         return piece
             ? `${piece.color}${piece.type.toUpperCase()}`
             : null;
-    };
-
-    const kingSquare = () => {
-        const board = game.board();
-
-        for (let row = 0; row < 8; row += 1) {
-            for (let col = 0; col < 8; col += 1) {
-                const piece = board[row][col];
-
-                if (
-                    piece &&
-                    piece.type === "k" &&
-                    piece.color === game.turn()
-                ) {
-                    return `${files[col]}${8 - row}`;
-                }
-            }
-        }
-
-        return null;
     };
 
     useEffect(() => {
@@ -354,6 +338,7 @@ export default function Board({ chess = {} }) {
 
         pointerFromRef.current = square;
         suppressClickRef.current = false;
+        setFocusedSquare(square);
         selectSquare(square);
 
         const pointer = getBoardPointer(event);
@@ -401,7 +386,7 @@ export default function Board({ chess = {} }) {
     };
 
     const squares = [];
-    const currentKingSquare = inCheck ? kingSquare() : null;
+    const currentKingSquare = inCheck ? checkSquare : null;
 
     const handleBoardKeyDown = event => {
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
