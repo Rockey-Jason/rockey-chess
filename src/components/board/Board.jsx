@@ -341,18 +341,25 @@ export default function Board({ chess = {} }) {
         const pointer = getBoardPointer(event);
         if (!pointer || !pointer.size) return;
 
-        pointerFromRef.current = square;
-        pointerIdRef.current = event.pointerId;
-        pointerCaptureTargetRef.current = event.currentTarget;
-        pointerCanCommitRef.current = canCommitPieceDrag(p, { turn, isThinking, gameOver });
-        suppressClickRef.current = false;
-        setFocusedSquare(square);
+        const canCommitMove = canCommitPieceDrag(p, { turn, isThinking, gameOver });
 
-        if (pointerCanCommitRef.current) {
-            selectSquare(square);
+        // Board receives clickSquare from useChessGame. Calling the old,
+        // undefined selectSquare name threw before the drag image was created
+        // and left pointerFromRef locked to the first source square.
+        if (canCommitMove) {
+            clickSquare(square);
         } else {
             clearSelection();
         }
+
+        // Only claim the pointer after the selection callback has completed,
+        // so an unexpected callback error cannot leave a stale active drag.
+        pointerFromRef.current = square;
+        pointerIdRef.current = event.pointerId;
+        pointerCaptureTargetRef.current = event.currentTarget;
+        pointerCanCommitRef.current = canCommitMove;
+        suppressClickRef.current = false;
+        setFocusedSquare(square);
 
         // Capture on the source square, while move/up/cancel are handled once
         // by the board. This keeps mouse and touch gestures consistent.
