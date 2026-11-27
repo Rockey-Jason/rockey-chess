@@ -8,7 +8,21 @@ import useChessGame from "../hooks/useChessGame";
 import { supabase } from "../supabase";
 
 function ChessCommandCenter({ chess }) {
-    const { currentBot = "talc", rating = 0, gameOver = false, isThinking = false } = chess;
+    const {
+        currentBot = "talc",
+        rating = 0,
+        gameOver = false,
+        isThinking = false,
+        matchLocked = false,
+        turn = "w"
+    } = chess;
+    const statusText = isThinking
+        ? "AI 수 계산 중"
+        : gameOver
+            ? "대국 종료"
+            : matchLocked
+                ? turn === "w" ? "내 차례" : "AI 차례"
+                : "대국 준비 완료";
     const botNames = { talc: "Talc", sleep: "Sleep", fur: "Fur", rockey: "ROCKEY", army: "Army", doronum: "Doronium", brilliant: "Brilliant" };
     return (
         <header className="chessCommandCenter">
@@ -17,10 +31,16 @@ function ChessCommandCenter({ chess }) {
                     <div className="chessBrandMark">♞</div>
                     <div><span className="chessEyebrow">DOLDOL WORLD · STRATEGY ARENA</span><h1>돌이체스 <span>CHESS</span></h1></div>
                 </div>
-                <div className="chessCommandStatus"><i className={isThinking ? "thinking" : gameOver ? "finished" : "ready"} />{isThinking ? "AI 분석 중" : gameOver ? "대국 종료" : "대국 준비 완료"}</div>
+                <div className="chessCommandStatus" role="status" aria-live="polite">
+                    <i className={isThinking ? "thinking" : gameOver ? "finished" : "ready"} />
+                    {statusText}
+                </div>
             </div>
             <div className="chessCommandBottom">
-                <div className="chessCommandCopy"><strong>한 수 앞을 읽는 전략의 공간</strong><p>AI와 실력을 겨루고, 친구와 대결하며, 나만의 체스 기록을 쌓아보세요.</p></div>
+                <div className="chessCommandCopy">
+                    <strong>{matchLocked && !gameOver ? (turn === "w" && !isThinking ? "당신의 다음 수를 기다리고 있어요." : "AI가 다음 수를 계산하고 있어요.") : "한 수 앞을 읽는 전략의 공간"}</strong>
+                    <p>AI 대국과 실시간 대전, 오프닝 학습과 나의 기보를 한곳에서 관리하세요.</p>
+                </div>
                 <div className="chessQuickStats">
                     <div><span>선택한 AI</span><b>{botNames[currentBot] || currentBot}</b></div>
                     <div><span>나의 레이팅</span><b>{Number(rating).toLocaleString()}</b></div>
