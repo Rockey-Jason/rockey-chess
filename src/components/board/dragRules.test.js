@@ -23,6 +23,21 @@ describe("board piece dragging", () => {
         expect(canCommitPieceDrag({ color: "w", type: "p" }, { turn: "b" })).toBe(false);
     });
 
+    it("re-evaluates a held piece when the turn changes before release", () => {
+        const whitePawn = { color: "w", type: "p" };
+
+        // Picked up during the AI's turn: cannot move yet.
+        expect(canCommitPieceDrag(whitePawn, { turn: "b", isThinking: true })).toBe(false);
+
+        // The same held piece becomes eligible once the AI finishes.
+        expect(canCommitPieceDrag(whitePawn, { turn: "w", isThinking: false })).toBe(true);
+    });
+
+    it("still rejects a held opponent piece after the turn changes", () => {
+        const blackPawn = { color: "b", type: "p" };
+        expect(canCommitPieceDrag(blackPawn, { turn: "w", isThinking: false })).toBe(false);
+    });
+
     it("never commits a move while the AI is thinking or the game is over", () => {
         const whitePawn = { color: "w", type: "p" };
         expect(canCommitPieceDrag(whitePawn, { isThinking: true })).toBe(false);
