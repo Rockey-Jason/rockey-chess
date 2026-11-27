@@ -9,7 +9,7 @@ import SpeechBubble from "../SpeechBubble";
 import botData from "../../data/botData";
 import RatingChange from "../RatingChange";
 import { supabase } from "../../supabase";
-import { canStartPieceDrag, canCommitPieceDrag } from "./dragRules";
+import { canStartPieceDrag, canCommitPieceDrag, shouldHandleDragPointer } from "./dragRules";
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const pieceNames = { k: "킹", q: "퀸", r: "룩", b: "비숍", n: "나이트", p: "폰" };
@@ -308,7 +308,7 @@ export default function Board({ chess = {} }) {
         if (
             !pointerFromRef.current ||
             !boardRef.current ||
-            event.pointerId !== pointerIdRef.current
+            !shouldHandleDragPointer(event, pointerIdRef.current)
         ) return;
 
         const pointer = getBoardPointer(event);
@@ -328,7 +328,7 @@ export default function Board({ chess = {} }) {
     const startPointerDrag = (event, square) => {
         // Ignore secondary fingers and non-primary mouse buttons so one gesture
         // owns the board until its pointer is released or cancelled.
-        if (event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
+        if (!shouldHandleDragPointer(event)) return;
         if (pointerFromRef.current) return;
 
         const p = game.get(square);
@@ -370,7 +370,7 @@ export default function Board({ chess = {} }) {
 
     const finishPointerDrag = (event) => {
         const from = pointerFromRef.current;
-        if (!from || event.pointerId !== pointerIdRef.current) return;
+        if (!from || !shouldHandleDragPointer(event, pointerIdRef.current)) return;
 
         const to = getSquareFromPointer(event);
         const canCommitMove = pointerCanCommitRef.current;
@@ -400,7 +400,7 @@ export default function Board({ chess = {} }) {
     };
 
     const cancelPointerDrag = (event) => {
-        if (event.pointerId !== pointerIdRef.current) return;
+        if (!shouldHandleDragPointer(event, pointerIdRef.current)) return;
 
         const captureTarget = pointerCaptureTargetRef.current;
         try {
