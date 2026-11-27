@@ -475,7 +475,7 @@ export default function Board({ chess = {} }) {
                     {evaluation.toFixed(2)}
                 </div>
 
-                {lastAnalysis && (
+                {lastAnalysis?.side === "player" && (
                     <div
                         className={`moveQuality quality-${lastAnalysis.quality}`}
                     >
