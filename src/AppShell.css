@@ -43,3 +43,11 @@
     padding-bottom:calc(70px + env(safe-area-inset-bottom));
   }
 }
+
+
+@media(max-width:700px){
+  /* The shared site-link reserves top space on desktop only; mobile navigation is bottom anchored. */
+  .appShell .siteSidebar{
+    padding:5px 8px calc(5px + env(safe-area-inset-bottom))!important;
+  }
+}
