@@ -29,6 +29,9 @@ export function classifyMove(
   meta = {}
 ) {
   const loss = Number.isFinite(Number(cpl)) ? Math.max(0, Number(cpl)) : 999999;
+  // A completed mate is decisive regardless of score availability or opening tags.
+  if (afterGame?.isCheckmate?.() || move?.san?.includes("#")) return "best";
+
   const movedValue = PIECE_VALUES[move?.piece] ?? 0;
   const capturedValue = PIECE_VALUES[move?.captured] ?? 0;
   const legalCount = beforeGame?.moves?.().length ?? 0;
