@@ -14,41 +14,57 @@ export default function SpeechBubble({
     const hideRef = useRef(null);
 
     useEffect(() => {
-        if (typingRef.current) clearInterval(typingRef.current);
-        if (hideRef.current) clearTimeout(hideRef.current);
+        if (typingRef.current) {
+            clearInterval(typingRef.current);
+            typingRef.current = null;
+        }
+        if (hideRef.current) {
+            clearTimeout(hideRef.current);
+            hideRef.current = null;
+        }
 
         if (!text || hide) {
             setTyping(false);
             setVisible(false);
-
-            hideRef.current = setTimeout(() => {
+            hideRef.current = window.setTimeout(() => {
                 setDisplayText("");
-            }, 360);
+                hideRef.current = null;
+            }, 280);
 
-            return () => {};
+            return () => {
+                if (hideRef.current) clearTimeout(hideRef.current);
+                hideRef.current = null;
+            };
+        }
+
+        setVisible(true);
+        const chars = Array.from(text);
+        const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        if (reducedMotion) {
+            setDisplayText(text);
+            setTyping(false);
+            return undefined;
         }
 
         setDisplayText("");
-        setVisible(true);
         setTyping(true);
-
         let index = 0;
-        const chars = Array.from(text);
-
-        typingRef.current = setInterval(() => {
+        typingRef.current = window.setInterval(() => {
             index += 1;
             setDisplayText(chars.slice(0, index).join(""));
 
             if (index >= chars.length) {
-                clearInterval(typingRef.current);
+                if (typingRef.current) window.clearInterval(typingRef.current);
                 typingRef.current = null;
                 setTyping(false);
             }
-        }, 38);
+        }, 34);
 
         return () => {
-            if (typingRef.current) clearInterval(typingRef.current);
-            if (hideRef.current) clearTimeout(hideRef.current);
+            if (typingRef.current) window.clearInterval(typingRef.current);
+            if (hideRef.current) window.clearTimeout(hideRef.current);
+            typingRef.current = null;
+            hideRef.current = null;
         };
     }, [text, hide]);
 
@@ -66,6 +82,9 @@ export default function SpeechBubble({
                 typing ? "typing" : ""
             }`}
             style={{ width: `${measuredWidth}px` }}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
             aria-hidden={!visible}
         >
             <span className="speechText">
