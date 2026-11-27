@@ -666,3 +666,175 @@
 
 /* The analysis studio must sit above the match-result dialog that opened it. */
 .analysisStudioBackdrop{z-index:100100!important}
+
+
+/* DORI CHESS — one-viewport analysis layout and selected-move-only board overlay */
+.analysisStudioBackdrop{
+  align-items:center!important;
+  justify-content:center!important;
+  padding:8px!important;
+  overflow:hidden!important;
+}
+.analysisStudio{
+  height:calc(100dvh - 16px);
+  max-height:calc(100dvh - 16px);
+  min-height:0!important;
+  overflow:hidden!important;
+  gap:clamp(7px,.9vh,12px)!important;
+  padding:clamp(10px,1.25vw,18px)!important;
+}
+.studioHeader{flex:0 0 auto;min-width:0;padding-bottom:8px}
+.studioSummary{flex:0 0 auto;grid-template-columns:repeat(4,minmax(70px,.72fr)) minmax(230px,2fr);gap:7px}
+.studioSummaryCard{min-height:62px;padding:8px 11px}
+.studioSummaryCard strong{font-size:22px}
+.studioQualitySummary{min-width:0;gap:4px;padding:6px}
+.studioQualityCount{min-width:0}
+.studioTimeline{flex:0 0 auto;padding:7px 12px 5px}
+.studioEvalGraph{height:48px;margin:1px 0 0}
+.studioTimelineRange{height:9px}
+.studioWorkspace{
+  flex:1 1 0;
+  min-height:0;
+  overflow:hidden;
+  grid-template-columns:minmax(230px,.72fr) minmax(0,1.28fr);
+  gap:10px;
+}
+.studioMovePanel{min-height:0;max-height:none;overflow:hidden}
+.studioMoveList{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain}
+.studioDetailPanel{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height:0;
+  height:100%;
+  padding:11px;
+  overflow:hidden;
+}
+.studioDetailTop{flex:0 0 auto}
+.studioReviewGrid{
+  flex:1 1 auto;
+  min-height:0;
+  grid-template-columns:minmax(0,1.2fr) minmax(140px,.8fr);
+  align-items:center;
+  gap:9px;
+}
+.studioBoardFrame{display:flex;flex-direction:column;align-items:center;width:100%;max-width:100%;min-width:0;min-height:0}
+.studioBoard{width:min(100%,36vh);max-width:100%;max-height:36vh;aspect-ratio:1;flex:0 1 auto}
+.studioBoardRoutes,.studioRoutePath{pointer-events:none!important}
+.studioOriginMarker{pointer-events:none}
+.studioDestinationBadge{cursor:default!important;pointer-events:none!important}
+.studioBoardRouteGuide{padding:4px 2px 1px;font-size:8px}
+.studioRouteLegend{gap:3px;padding:2px 0}
+.studioRouteLegendItem{padding:3px 5px}
+.studioRouteLegendItem small{font-size:7px}
+.studioEvaluationCard{width:100%;min-width:0;padding:10px;gap:7px;align-self:stretch}
+.studioEvaluationCard>strong{font-size:clamp(25px,2.5vw,34px)}
+.studioEvalMeta{padding-top:5px}
+.studioExplanation{flex:0 0 auto;padding:9px 11px}
+.studioExplanation p{margin:5px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.studioBestMove{margin-top:6px;padding-top:6px}
+.studioNavigation{flex:0 0 auto;gap:6px;margin-top:0;padding-top:0}
+.studioNavigation button{min-height:42px!important}
+.studioPgn{flex:0 0 auto}
+.studioPgn summary{padding:7px 11px}
+.studioFooter{display:none}
+
+@media(max-width:1120px){
+  .studioWorkspace{grid-template-columns:minmax(210px,.62fr) minmax(0,1.38fr)}
+  .studioReviewGrid{grid-template-columns:minmax(0,1.1fr) minmax(132px,.72fr)}
+  .studioBoard{width:min(100%,33vh);max-height:33vh}
+}
+@media(max-width:880px){
+  .analysisStudioBackdrop{padding:6px!important}
+  .analysisStudio{
+    width:min(100%,820px);
+    height:calc(100dvh - 12px);
+    max-height:calc(100dvh - 12px);
+    padding:10px!important;
+    gap:6px!important;
+    border-radius:16px;
+  }
+  .studioHeader{gap:8px;padding-bottom:5px}
+  .studioBrand{gap:8px}
+  .studioBrandMark{width:36px;height:36px;flex-basis:36px}
+  .studioBrand h2{font-size:20px;line-height:1.1}
+  .studioBrand p{font-size:8px;margin:3px 0 0}
+  .studioEyebrow{font-size:7px}
+  .studioClose{min-height:34px!important;padding:5px 8px!important}
+  .studioSummary{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+  .studioSummaryCard{min-height:48px;padding:6px 8px}
+  .studioSummaryCard:nth-child(4),.studioQualitySummary{display:none}
+  .studioSummaryCard>span{font-size:8px}
+  .studioSummaryCard strong{margin-top:3px;font-size:18px}
+  .studioTimeline{padding:5px 8px 4px;border-radius:10px}
+  .studioTimelineLegend,.studioTimelineEnds{display:none}
+  .studioEvalGraph{height:38px;margin:0}
+  .studioTimelineRange{height:8px;margin:0}
+  .studioWorkspace{display:flex!important;flex:1 1 auto;min-height:0;overflow:hidden}
+  .studioMovePanel{display:none!important}
+  .studioDetailPanel{flex:1 1 auto;width:100%;min-height:0;padding:8px;gap:6px;border-radius:12px}
+  .studioDetailTop{gap:6px;align-items:center}
+  .studioDetailTop h3{font-size:19px;line-height:1.05}
+  .studioDetailTop>div>span{font-size:7px}
+  .studioClassification{padding:5px 7px;font-size:8px}
+  .studioReviewGrid{
+    flex:1 1 auto;
+    min-height:0;
+    grid-template-columns:minmax(0,1.1fr) minmax(108px,.72fr);
+    justify-items:stretch;
+    align-items:center;
+    gap:7px;
+  }
+  .studioBoardFrame{width:100%;max-width:none;justify-self:stretch}
+  .studioBoard{width:min(100%,32vh);max-height:32vh;border-width:6px;border-radius:9px}
+  .studioBoardCaption,.studioBoardRouteGuide,.studioRouteLegend{display:none}
+  .studioEvaluationCard{width:100%;padding:8px;gap:6px;border-radius:10px}
+  .studioEvaluationCard>span{font-size:8px}
+  .studioEvaluationCard>strong{font-size:clamp(22px,5.4vw,29px)}
+  .studioEvalMeter{height:6px;margin:0 0 2px}
+  .studioEvalMeta{gap:4px;padding-top:4px;font-size:7px}
+  .studioEvalMeta b{font-size:8px}
+  .studioExplanation{display:none}
+  .studioNavigation{flex:0 0 auto;gap:5px;padding-top:2px}
+  .studioNavigation button{min-height:40px!important;padding:5px 3px!important}
+  .studioNavigation button>small{font-size:7px}
+  .studioCurrentPly{min-width:45px}
+  .studioCurrentPly b{font-size:18px}
+  .studioPgn{border-radius:8px}
+  .studioPgn summary{min-height:26px;padding:5px 9px;font-size:9px}
+  .studioPgn summary small{font-size:7px}
+  .studioPgnActions{padding:0 9px 7px}
+  .studioPgn pre{max-height:100px}
+  .studioFooter{display:none!important}
+}
+@media(max-width:420px){
+  .analysisStudio{padding:8px!important;gap:5px!important}
+  .studioBrand p{display:none}
+  .studioBrand h2{font-size:18px}
+  .studioSummaryCard{min-height:43px}
+  .studioSummaryCard>span{font-size:7px}
+  .studioSummaryCard strong{font-size:17px}
+  .studioEvalGraph{height:34px}
+  .studioReviewGrid{grid-template-columns:minmax(0,1.05fr) minmax(100px,.7fr);gap:5px}
+  .studioBoard{width:min(100%,30vh);max-height:30vh;border-width:5px}
+  .studioEvaluationCard{padding:7px 6px;gap:5px}
+  .studioEvaluationCard>strong{font-size:22px}
+  .studioNavigation{gap:3px}
+  .studioNavigation button{min-height:38px!important}
+  .studioNavigation button:first-child,.studioNavigation button:last-child{display:none!important}
+  .studioCurrentPly{min-width:42px}
+  .studioCurrentPly b{font-size:17px}
+}
+@media(max-height:640px){
+  .studioBrand p{display:none}
+  .studioSummaryCard{min-height:42px}
+  .studioTimeline{padding:3px 7px}
+  .studioEvalGraph{height:30px}
+  .studioBoard{width:min(100%,28vh);max-height:28vh}
+  .studioDetailPanel{gap:4px;padding:6px}
+  .studioNavigation button{min-height:35px!important}
+  .studioPgn summary{min-height:22px;padding:3px 8px}
+}
+@media(prefers-reduced-motion:reduce){
+  .studioRoutePath,.studioDestinationBadge,.studioNavigation button{transition:none!important}
+}
