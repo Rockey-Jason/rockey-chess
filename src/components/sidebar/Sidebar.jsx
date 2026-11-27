@@ -73,8 +73,6 @@ export default function Sidebar({ chess = {} }) {
         analysisBusy = false,
         analysisError = "",
         analysisProgress = { completed: 0, total: 0, currentMove: 0, percent: 0 },
-        analysisReady = false,
-        doldolcoin = 0,
         rockKingCoin = 0
     } = chess;
 
@@ -121,6 +119,7 @@ export default function Sidebar({ chess = {} }) {
     };
 
     return (
+        <>
         <aside className="sidebar">
             <div className="sidebarTitle">
                 <div>
@@ -135,8 +134,7 @@ export default function Sidebar({ chess = {} }) {
             <div className="botList">
                 {Object.keys(botData).map((id) => {
                     const lockedByRating = rating < req[id];
-                    const lockedByGame =
-                        matchLocked && currentBot !== id;
+                    const lockedByGame = matchLocked;
 
                     return (
                         <button
