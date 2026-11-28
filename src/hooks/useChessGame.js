@@ -926,33 +926,60 @@ const say = useCallback(
         const { user, profile } = await getLoginIdAndProfile();
         if (!user) throw new Error("로그인 세션을 확인할 수 없어 레이팅을 저장하지 못했습니다.");
 
-        const storedRating = Number(profile.chess_rating);
-        const baseRating = Number.isFinite(storedRating)
-          ? storedRating
-          : Math.max(0, Number(rating) || 0);
-        const next = Math.max(0, baseRating + Number(change));
+        // null / 빈 문자열을 Number()로 변환하면 0이 되므로,
+        // 실제 저장값이 없을 때는 현재 화면의 레이팅을 기준값으로 사용한다.
+        const rawStoredRating = profile.chess_rating;
+        const parsedStoredRating =
+          rawStoredRating === null || rawStoredRating === undefined || rawStoredRating === ""
+            ? NaN
+            : Number(rawStoredRating);
+        const screenRating = Number(rating);
+        const baseRating = Number.isFinite(parsedStoredRating)
+          ? parsedStoredRating
+          : Number.isFinite(screenRating)
+            ? Math.max(0, screenRating)
+            : 0;
+        const numericChange = Number(change);
+        if (!Number.isFinite(numericChange) || numericChange === 0) {
+          throw new Error("적용할 레이팅 변화량이 올바르지 않습니다.");
+        }
+        const next = Math.max(0, baseRating + numericChange);
 
-        // Update through the authenticated owner's stable key and verify that
-        // Supabase actually returned the changed row before updating local UI.
-        const { data, error } = await supabase
+        // 먼저 소유자 행을 갱신한 뒤, 별도 조회로 DB 반영 여부를 검증한다.
+        // UPDATE ... SELECT 조합이 RLS의 SELECT 정책에 막히는 경우도 분리해 처리한다.
+        const { data: updateRows, error: updateError } = await supabase
           .from("users")
           .update({ chess_rating: next })
           .eq("user_id", user.id)
-          .select("chess_rating")
-          .maybeSingle();
+          .select("user_id");
 
-        if (error) throw error;
-        if (!data) {
-          throw new Error("레이팅을 변경할 사용자 행을 찾지 못했습니다. 계정 정보를 확인해 주세요.");
+        if (updateError) throw updateError;
+        if (!updateRows || updateRows.length === 0) {
+          throw new Error("레이팅을 수정할 사용자 행이 없습니다. 로그인 및 users 테이블 RLS 정책을 확인해 주세요.");
         }
 
-        const savedRating = Number(data.chess_rating);
+        const { data: verifiedProfile, error: verifyError } = await supabase
+          .from("users")
+          .select("chess_rating")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (verifyError) throw verifyError;
+        if (!verifiedProfile) {
+          throw new Error("레이팅 저장 후 사용자 정보를 다시 확인하지 못했습니다.");
+        }
+
+        const savedRating = Number(verifiedProfile.chess_rating);
+        if (!Number.isFinite(savedRating) || savedRating !== next) {
+          throw new Error(`레이팅 저장값 검증 실패: 기대값 ${next}, 실제값 ${verifiedProfile.chess_rating}`);
+        }
+
         const actualChange = savedRating - baseRating;
         ratingSavedRef.current = true;
         setRating(savedRating);
         setPlayerProfile(prev => ({ ...prev, rating: savedRating }));
         setRatingChange(actualChange);
-        setShowRatingChange(true);
+        setShowRatingChange(actualChange !== 0);
         return true;
       } catch (error) {
         console.error("[Rockey Chess] 레이팅 저장 실패:", error);
@@ -1283,32 +1310,30 @@ const say = useCallback(
   useEffect(() => {
     if (
       !gameOver ||
-      ratingSavedRef.current
+      ratingSavedRef.current ||
+      !["1-0", "0-1", "1/2-1/2"].includes(result)
     ) {
       return;
     }
 
-    const won =
-      result === "1-0";
-
-    const draw =
-      result === "1/2-1/2";
-
+    const won = result === "1-0";
+    const draw = result === "1/2-1/2";
     const opponentRating = botRating[currentBot] || 0;
     const playerRating = Number(rating);
-    // 봇이 플레이어보다 훨씬 약해도 정상적으로 이긴 대국이면 레이팅이 반드시 오른다.
-    // 기존 보상 계산이 0으로 내려가는 구간은 최소 +1로 보정한다.
     const ratingGain = Math.max(1, getRatingGain(opponentRating, playerRating));
-
     const ratingLoss = getRatingLoss(opponentRating, playerRating);
-
     const change = won
       ? ratingGain
       : draw
         ? -Math.max(1, Math.floor(ratingLoss / 4))
         : -Math.max(10, Math.round(ratingLoss * 1.3));
 
-    saveRating(change);
+    // 저장 실패를 조용히 무시하지 않고 원인을 로그에 남긴다.
+    saveRating(change).then(saved => {
+      if (!saved) {
+        console.error("[Rockey Chess] 경기 결과는 확정됐지만 레이팅 저장에 실패했습니다. Supabase 인증/RLS/네트워크를 확인해 주세요.");
+      }
+    });
 
     const summary = finalizeSummary(result);
     setGameSummary(summary);
