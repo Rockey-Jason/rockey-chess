@@ -1296,7 +1296,9 @@ const say = useCallback(
 
     const opponentRating = botRating[currentBot] || 0;
     const playerRating = Number(rating);
-    const ratingGain = getRatingGain(opponentRating, playerRating);
+    // 봇이 플레이어보다 훨씬 약해도 정상적으로 이긴 대국이면 레이팅이 반드시 오른다.
+    // 기존 보상 계산이 0으로 내려가는 구간은 최소 +1로 보정한다.
+    const ratingGain = Math.max(1, getRatingGain(opponentRating, playerRating));
 
     const ratingLoss = getRatingLoss(opponentRating, playerRating);
 
