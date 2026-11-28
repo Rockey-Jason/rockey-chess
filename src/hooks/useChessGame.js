@@ -20,20 +20,6 @@ const botRating = {
   brilliant: 10000
 };
 
-const getRatingGain = (opponentRating, playerRating) => {
-  const diff = Number(opponentRating) - Number(playerRating);
-
-  // 레이팅 차이 25점마다 승리 보상이 1씩 변한다.
-  return Math.max(0, Math.min(170, 50 + Math.trunc(diff / 25)));
-};
-
-const getRatingLoss = (opponentRating, playerRating) => {
-  const diff = Number(opponentRating) - Number(playerRating);
-
-  // 레이팅 차이 25점마다 기본 패배 감소량이 1씩 변한다.
-  return Math.max(0, Math.min(170, 50 - Math.trunc(diff / 25)));
-};
-
 const STAT_KEYS = [
   "brilliant",
   "great",
@@ -169,7 +155,7 @@ export default function useChessGame() {
   const [analysisProgress, setAnalysisProgress] = useState({ completed: 0, total: 0, currentMove: 0, percent: 0 });
   const analysisTaskRef = useRef(null);
   const analysisGenerationRef = useRef(0);
-  const savedGameRef = useRef(false);
+  const gameSettlementRef = useRef({ matchId: 0, gameId: null, promise: null });
   const [achievementEvent, setAchievementEvent] = useState(null);
   const achievementQueueRef = useRef([]);
   const achievementShowingRef = useRef(false);
@@ -909,88 +895,6 @@ const say = useCallback(
     ]
   );
 
-  const saveRating = useCallback(
-    async change => {
-      if (
-        ratingSavedRef.current ||
-        ratingSaveInFlightRef.current ||
-        !Number.isFinite(Number(change)) ||
-        Number(change) === 0
-      ) {
-        return false;
-      }
-
-      ratingSaveInFlightRef.current = true;
-
-      try {
-        const { user, profile } = await getLoginIdAndProfile();
-        if (!user) throw new Error("로그인 세션을 확인할 수 없어 레이팅을 저장하지 못했습니다.");
-
-        // null / 빈 문자열을 Number()로 변환하면 0이 되므로,
-        // 실제 저장값이 없을 때는 현재 화면의 레이팅을 기준값으로 사용한다.
-        const rawStoredRating = profile.chess_rating;
-        const parsedStoredRating =
-          rawStoredRating === null || rawStoredRating === undefined || rawStoredRating === ""
-            ? NaN
-            : Number(rawStoredRating);
-        const screenRating = Number(rating);
-        const baseRating = Number.isFinite(parsedStoredRating)
-          ? parsedStoredRating
-          : Number.isFinite(screenRating)
-            ? Math.max(0, screenRating)
-            : 0;
-        const numericChange = Number(change);
-        if (!Number.isFinite(numericChange) || numericChange === 0) {
-          throw new Error("적용할 레이팅 변화량이 올바르지 않습니다.");
-        }
-        const next = Math.max(0, baseRating + numericChange);
-
-        // 먼저 소유자 행을 갱신한 뒤, 별도 조회로 DB 반영 여부를 검증한다.
-        // UPDATE ... SELECT 조합이 RLS의 SELECT 정책에 막히는 경우도 분리해 처리한다.
-        const { data: updateRows, error: updateError } = await supabase
-          .from("users")
-          .update({ chess_rating: next })
-          .eq("user_id", user.id)
-          .select("user_id");
-
-        if (updateError) throw updateError;
-        if (!updateRows || updateRows.length === 0) {
-          throw new Error("레이팅을 수정할 사용자 행이 없습니다. 로그인 및 users 테이블 RLS 정책을 확인해 주세요.");
-        }
-
-        const { data: verifiedProfile, error: verifyError } = await supabase
-          .from("users")
-          .select("chess_rating")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (verifyError) throw verifyError;
-        if (!verifiedProfile) {
-          throw new Error("레이팅 저장 후 사용자 정보를 다시 확인하지 못했습니다.");
-        }
-
-        const savedRating = Number(verifiedProfile.chess_rating);
-        if (!Number.isFinite(savedRating) || savedRating !== next) {
-          throw new Error(`레이팅 저장값 검증 실패: 기대값 ${next}, 실제값 ${verifiedProfile.chess_rating}`);
-        }
-
-        const actualChange = savedRating - baseRating;
-        ratingSavedRef.current = true;
-        setRating(savedRating);
-        setPlayerProfile(prev => ({ ...prev, rating: savedRating }));
-        setRatingChange(actualChange);
-        setShowRatingChange(actualChange !== 0);
-        return true;
-      } catch (error) {
-        console.error("[Rockey Chess] 레이팅 저장 실패:", error);
-        return false;
-      } finally {
-        ratingSaveInFlightRef.current = false;
-      }
-    },
-    [rating]
-  );
-
   const showAchievement = useCallback((data) => {
     if (!data?.success || data?.already_claimed) return;
 
@@ -1104,45 +1008,69 @@ const say = useCallback(
     }
   }, [claimAchievement, currentBot]);
 
-  const saveCompletedGame = useCallback(async (summary, finalResult) => {
-    if (savedGameRef.current) return null;
-
-    const { user, loginId } = await getLoginIdAndProfile();
-    if (!user) {
-      console.warn("[Rockey Chess] 로그인 세션이 없어 경기 기록을 저장하지 못했습니다.");
-      return null;
+  const saveCompletedGame = useCallback(async (summary, finalResult, matchId) => {
+    let settlement = gameSettlementRef.current;
+    if (settlement.matchId !== matchId) {
+      settlement = { matchId, gameId: null, promise: null };
+      gameSettlementRef.current = settlement;
     }
 
-    // Mark the game saved only after the DB insert succeeds. Previously the guard
-    // was set before the insert and a missing chess_games.login_id column caused
-    // the result to be silently lost forever for this game.
-    const { data, error } = await supabase.from("chess_games").insert({
-      user_id: user.id,
-      login_id: loginId || null,
-      mode: "bot",
-      bot_id: currentBot,
-      result: finalResult,
-      pgn: summary?.pgn || game.pgn(),
-      accuracy: Number(summary?.accuracy || accuracy || 0),
-      summary: { ...(summary || {}), result: finalResult, white: summary?.white || "Player" }
-    }).select("id").single();
+    if (settlement.gameId) return settlement.gameId;
+    if (settlement.promise) return settlement.promise;
 
-    if (error || !data?.id) {
-      console.error("[Rockey Chess] 경기 기록 저장 실패. 업적 진행도는 저장된 경기 기록 기준이라 이번 경기를 반영할 수 없습니다.", error || "경기 ID가 반환되지 않았습니다.");
-      return null;
+    const task = (async () => {
+      const { user, loginId } = await getLoginIdAndProfile();
+      if (!user) {
+        console.warn("[Rockey Chess] 로그인 세션이 없어 경기 기록을 저장하지 못했습니다.");
+        return null;
+      }
+
+      const { data, error } = await supabase.from("chess_games").insert({
+        user_id: user.id,
+        login_id: loginId || null,
+        mode: "bot",
+        bot_id: currentBot,
+        result: finalResult,
+        pgn: summary?.pgn || game.pgn(),
+        accuracy: Number(summary?.accuracy || accuracy || 0),
+        summary: { ...(summary || {}), result: finalResult, white: summary?.white || "Player" }
+      }).select("id").single();
+
+      if (error || !data?.id) {
+        console.error("[Rockey Chess] 경기 기록 저장 실패.", error || "경기 ID가 반환되지 않았습니다.");
+        return null;
+      }
+
+      // Keep the exact game ID so the rating settlement can be safely retried.
+      if (gameSettlementRef.current.matchId === matchId) {
+        gameSettlementRef.current.gameId = data.id;
+      }
+
+      const reward = finalResult === "1-0" ? 100 : finalResult === "1/2-1/2" ? 40 : 15;
+      const { data: coinData, error: coinError } = await supabase.rpc("award_rock_king_coin", {
+        p_amount: reward,
+        p_login_id: loginId || ""
+      });
+      if (coinError) {
+        console.warn("[Rockey Chess] 경기 기록은 저장됐지만 도로늄 코인 보상 갱신에 실패했습니다.", coinError);
+      } else if (coinData?.balance !== undefined) {
+        setRockKingCoin(Number(coinData.balance));
+      }
+
+      return data.id;
+    })();
+
+    settlement.promise = task;
+    try {
+      return await task;
+    } finally {
+      if (
+        gameSettlementRef.current.matchId === matchId &&
+        gameSettlementRef.current.promise === task
+      ) {
+        gameSettlementRef.current.promise = null;
+      }
     }
-
-    savedGameRef.current = true;
-
-    const reward = finalResult === "1-0" ? 100 : finalResult === "1/2-1/2" ? 40 : 15;
-    const { data: coinData, error: coinError } = await supabase.rpc("award_rock_king_coin", { p_amount: reward, p_login_id: loginId || "" });
-    if (coinError) {
-      console.warn("[Rockey Chess] 경기 기록은 저장됐지만 도로늄 코인 보상 갱신에 실패했습니다.", coinError);
-    } else if (coinData?.balance !== undefined) {
-      setRockKingCoin(Number(coinData.balance));
-    }
-
-    return data.id;
   }, [accuracy, currentBot, game]);
 
   const analyzeGame = useCallback(async () => {
@@ -1311,45 +1239,63 @@ const say = useCallback(
     if (
       !gameOver ||
       ratingSavedRef.current ||
+      ratingSaveInFlightRef.current ||
       !["1-0", "0-1", "1/2-1/2"].includes(result)
     ) {
       return;
     }
 
-    const won = result === "1-0";
-    const draw = result === "1/2-1/2";
-    const opponentRating = botRating[currentBot] || 0;
-    const playerRating = Number(rating);
-    const ratingGain = Math.max(1, getRatingGain(opponentRating, playerRating));
-    const ratingLoss = getRatingLoss(opponentRating, playerRating);
-    const change = won
-      ? ratingGain
-      : draw
-        ? -Math.max(1, Math.floor(ratingLoss / 4))
-        : -Math.max(10, Math.round(ratingLoss * 1.3));
-
-    // 저장 실패를 조용히 무시하지 않고 원인을 로그에 남긴다.
-    saveRating(change).then(saved => {
-      if (!saved) {
-        console.error("[Rockey Chess] 경기 결과는 확정됐지만 레이팅 저장에 실패했습니다. Supabase 인증/RLS/네트워크를 확인해 주세요.");
-      }
-    });
+    const matchId = gameIdRef.current;
+    ratingSaveInFlightRef.current = true;
 
     const summary = finalizeSummary(result);
     setGameSummary(summary);
-    saveCompletedGame(summary, result).then(savedGameId => {
-      if (!savedGameId) {
-        console.warn("[Rockey Chess] 저장된 경기 ID가 없으므로 업적 달성 판정을 건너뜁니다.");
-        return;
+
+    (async () => {
+      try {
+        const savedGameId = await saveCompletedGame(summary, result, matchId);
+        if (!savedGameId) {
+          throw new Error("경기 기록을 저장하지 못해 레이팅을 정산할 수 없습니다.");
+        }
+
+        // chess_rating is protected by a database trigger. The RPC verifies
+        // ownership of this saved bot-game row and applies the result once.
+        const { data, error } = await supabase.rpc("apply_bot_chess_rating", {
+          p_game_id: savedGameId
+        });
+        if (error) throw error;
+
+        const settlement = Array.isArray(data) ? data[0] : data;
+        const nextRating = Number(settlement?.rating);
+        const actualChange = Number(settlement?.rating_change);
+        if (
+          settlement?.ok !== true ||
+          !Number.isFinite(nextRating) ||
+          !Number.isFinite(actualChange)
+        ) {
+          throw new Error("서버에서 올바른 레이팅 정산 결과를 받지 못했습니다.");
+        }
+
+        if (matchId === gameIdRef.current) {
+          ratingSavedRef.current = true;
+          setRating(nextRating);
+          setPlayerProfile(prev => ({ ...prev, rating: nextRating }));
+          setRatingChange(actualChange);
+          setShowRatingChange(actualChange !== 0);
+        }
+
+        await checkChessAchievements(result);
+      } catch (error) {
+        console.error("[Rockey Chess] 봇 대국 레이팅 정산 실패:", error);
+      } finally {
+        if (matchId === gameIdRef.current) {
+          ratingSaveInFlightRef.current = false;
+        }
       }
-      return checkChessAchievements(result);
-    });
+    })();
   }, [
     gameOver,
     result,
-    currentBot,
-    rating,
-    saveRating,
     finalizeSummary,
     saveCompletedGame,
     checkChessAchievements
@@ -1972,7 +1918,7 @@ const say = useCallback(
       ratingSavedRef.current = false;
       ratingSaveInFlightRef.current = false;
       positionAnalysisCacheRef.current.clear();
-      savedGameRef.current = false;
+      gameSettlementRef.current = { matchId: gameIdRef.current, gameId: null, promise: null };
       setAnalysisReady(false);
       setAnalysisOpen(false);
       setAnalysisError("");
